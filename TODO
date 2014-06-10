@@ -2,7 +2,6 @@ TODO
 	logging (to file, email admin)
 	error response
 		debug infodumps
-	virtual filesystem
 	sql query formatting (string + parameter merging)
 	sql marshalling
 	formatting

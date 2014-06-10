@@ -1,3 +1,7 @@
+class BadConfiguration(Exception):
+    pass
+
+
 _CODES = {
 	200: "OK",
 

@@ -17,7 +17,7 @@ class Context:
 class Request:
     def __init__(self, environ):
         self.scheme = environ['wsgi.url_scheme']
-        self.path = sanitize(environ['PATH_INFO'], strict=False)
+        self.path = environ['PATH_INFO'].strip('/').split('/')
         self.method = environ['REQUEST_METHOD']
         self.accept = _parse_accept(environ['HTTP_ACCEPT'])
 

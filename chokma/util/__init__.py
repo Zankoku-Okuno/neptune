@@ -1,2 +1,0 @@
-class BadConfiguration(Exception):
-    pass

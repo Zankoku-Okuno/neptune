@@ -1,7 +1,7 @@
 import os
 from os import path
 import imp
-from chokma.util import BadConfiguration
+from chokma.errors import BadConfiguration
 
 config = None
 

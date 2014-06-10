@@ -3,10 +3,11 @@ import sys, os
 from os import path
 os.environ['CHOKMA_CONFIG'] = path.join(path.dirname(path.abspath(__file__)), 'test/config.py')
 
-from chokma.http.context import Context
-from chokma.http.routing import *
-from chokma.http.pipeline import Endpoint, Route, Resource, Renderer
 from chokma.errors import Http404
+from chokma.http.context import Context
+from chokma.http.pipeline import Endpoint, Route, Resource, Renderer
+from chokma.http.routing import *
+from chokma import fs
 
 
 class Hello(Resource):
@@ -15,10 +16,21 @@ class Hello(Resource):
 class End(Resource):
     def GET(self, context, **params):
         return {'params': params}
+class File(Resource):
+    def GET(self, context, filename):
+        try:
+            return {'filepath': fs.resolve('test', filename)}
+        except ValueError:
+            raise Http404(context.request)
 
 class PrintHi(Renderer):
     def html(self, context):
         yield b"Hello!"
+class PrintFile(Renderer):
+    default_content_type = 'text/plain'
+    def text(self, context, filepath = None):
+        with open(filepath, 'rb') as fp:
+            yield fp.read()
 class PrintInfo(Renderer):
     default_content_type = 'text/plain'
     def text(self, context):
@@ -44,6 +56,8 @@ def add5(ccontext, params, augment):
 routes = (
     Endpoint('hi', Hello(), PrintHi(),
         Route(Literal('foo'), Literal('bar')) ),
+    Endpoint('file', File(), PrintFile(),
+        Route(Literal('file'), Slug('filename')) ),
     Endpoint('foo', End(), PrintInfo(),
         Route(Literal('foo'), Slug('bar'), Do(add5)) ),
 )
@@ -66,7 +80,7 @@ def application(environ, start_response):
         status = '404 Not Found'
         response_headers = [( 'Content-Type', 'text/plain' )]
         body = ['Resource not found.\n'.encode('utf-8'),
-                str(ex.request.path).encode('utf-8')
+                str(context.request.path).encode('utf-8')
                ]
 
     len_acc = 0
