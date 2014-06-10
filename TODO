@@ -1,21 +1,34 @@
 TODO
 	logging (to file, email admin)
-	debug infodumps
+	error response
+		debug infodumps
 	virtual filesystem
 	sql query formatting (string + parameter merging)
 	sql marshalling
-
-
+	formatting
+		html document header
+		html vocabulary extension
+	templates
+	sendfile
 
 
 FIXME
+	let the framework glue the pipes together, don't make implementors do it
 	setup.py
 	content negotation is not fully compliant
 		q=0.0
 		parameters beyond q
+
+
+FLESH OUT
+	route segments
+	HTML model
+	HTTP methods (redirect, 500)
+
 
 CONFIG
 	routes
 	recognized content-types
 	allowed HTTP methods
 	debug
+	error responses
