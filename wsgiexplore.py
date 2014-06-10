@@ -3,10 +3,10 @@ import sys, os
 from os import path
 os.environ['CHOKMA_CONFIG'] = path.join(path.dirname(path.abspath(__file__)), 'test/config.py')
 
-from chokma.core.context import Context
-from chokma.core.route import *
-from chokma.core.resource import *
-from chokma.core.render import *
+from chokma.http.context import Context
+from chokma.http.routing import *
+from chokma.http.pipeline import Endpoint, Route, Resource, Renderer
+from chokma.errors import Http404
 
 
 class Hello(Resource):

@@ -1,10 +1,6 @@
 from chokma.util.path import sanitize
 
 
-from chokma.config import config
-_ignore_wildcard = config.ACCEPT_IGNORE_WILDCARD
-
-
 class Context:
     """Aggregates request and response objects, as well as any other data the server needs to set.
 
@@ -32,6 +28,7 @@ class Response:
 
 
 def _parse_accept(input):
+    from chokma.config import config
     output = dict()
     for media_range in input.split(','):
         # parse out media type and quality value
@@ -46,7 +43,7 @@ def _parse_accept(input):
         if qval not in output:
             output[qval] = ([], [], [])
         if media_type == ('*', '*'):
-            if not _ignore_wildcard:
+            if not config.ACCEPT_IGNORE_WILDCARD:
                 output[qval][2].append(media_type)
         elif media_type[1] == '*':
             output[qval][1].append(media_type)

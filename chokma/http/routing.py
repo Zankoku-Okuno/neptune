@@ -1,32 +1,5 @@
 from chokma.errors import Http404
 
-class Endpoint:
-    def __init__(self, name, resource, renderer, route):
-        self.name = name
-        self.route = route
-        self.resource = resource
-        self.renderer = renderer
-
-    # TODO prefix/postfix the route with add'l segments 
-        
-
-class Route:
-    def __init__(self, *segments):
-        self._segs = tuple(segments)
-    
-    def go(self, context):
-        request = context.request
-        path = request.path.copy()
-        params, augment = {}, {}
-        for seg in self._segs:
-            path = seg.test(context, path, params, augment)
-        if path:
-            raise Http404(request)
-        else:
-            for attr, value in augment.items():
-                context.__setattr__(attr, value)
-            return params
-
 
 class RouteSegment:
     def test(self, context, path, params, augment):
