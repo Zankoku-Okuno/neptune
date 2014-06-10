@@ -27,13 +27,13 @@ class PrintInfo(Renderer):
         yield str(context.params).encode('utf-8')
         yield b"\n"
         yield str(context.request.accept).encode('utf-8')
-    def html(self, context):
+    def html(self, context, params):
         from chokma import html
         doc = html.Document()
         doc.title = "wsgiexplore info"
         doc.append(
             html.p(context.add).id('first'),
-            html.p(context.params),
+            html.p(params),
             html.p(context.request.accept),
             )
         yield from html.render(doc)
@@ -42,26 +42,25 @@ def add5(ccontext, params, augment):
     augment['add'] = 5
 
 routes = (
-    Route('hi', Hello(), PrintHi(),
-        Literal('foo'), Literal('bar')),
-    Route('foo', End(), PrintInfo(),
-        Literal('foo'), Slug('bar'), Do(add5)),
+    Endpoint('hi', Hello(), PrintHi(),
+        Route(Literal('foo'), Literal('bar')) ),
+    Endpoint('foo', End(), PrintInfo(),
+        Route(Literal('foo'), Slug('bar'), Do(add5)) ),
 )
 
 
 def application(environ, start_response):
     context = Context(environ)
-    for route in routes:
+    for endpoint in routes:
         try:
-            endpoint, params = route.go(context)
+            params = endpoint.route.go(context)
         except Http404:
             continue
-        endpoint.resource.go(context, **params)
-        endpoint.renderer.go(context)
-        response = context.response
+        data = endpoint.resource.go(context, **params)
+        body = endpoint.renderer.go(context, **data)
+        context.response.body = body
         status = '200 OK'
-        response_headers = response._headers
-        body = list(response._body)
+        response_headers = context.response._headers
         break
     else:
         status = '404 Not Found'
@@ -71,11 +70,13 @@ def application(environ, start_response):
                ]
 
     len_acc = 0
+    body_acc = []
     for piece in body:
         len_acc += len(piece)
+        body_acc.append(piece)
     response_headers.append(( 'Content-Length', str(len_acc) ))
     start_response(status, response_headers)
-    return body
+    return body_acc
 
 from wsgiref.simple_server import make_server
 httpd = make_server('localhost', 8080, application)

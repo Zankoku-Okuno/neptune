@@ -1,10 +1,17 @@
 from chokma.errors import Http404
 
-class Route:
-    def __init__(self, name, resource, renderer, *segments):
+class Endpoint:
+    def __init__(self, name, resource, renderer, route):
         self.name = name
+        self.route = route
         self.resource = resource
         self.renderer = renderer
+
+    # TODO prefix/postfix the route with add'l segments 
+        
+
+class Route:
+    def __init__(self, *segments):
         self._segs = tuple(segments)
     
     def go(self, context):
@@ -18,26 +25,7 @@ class Route:
         else:
             for attr, value in augment.items():
                 context.__setattr__(attr, value)
-            return self, params
-
-    def append(self, segment):
-        out = self.copy()
-        if isinstance(segment, tuple):
-            out._segs = out._segs + segment
-        else:
-            out._segs = out._segs + (segment,)
-        return out
-    
-    def prepend(self, segment):
-        out = self.copy()
-        if isinstance(segment, tuple):
-            out._segs = segment + out._segs
-        else:
-            out._segs = (segment,) + self._segs
-        return out
-
-    def copy(self):
-        return Route(self.name, self.resource, self.renderer, *self._segs)
+            return params
 
 
 class RouteSegment:

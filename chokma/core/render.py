@@ -11,10 +11,10 @@ from chokma.errors import Http406
 
 
 class Renderer:
-    def go(self, context):
+    def go(self, context, **data):
         ct = self._negotiate(context)
         context.set_header('Content-Type', ct)
-        context.response._body = self.__getattribute__(CONTENT_TYPES[ct])(context)
+        return self.__getattribute__(CONTENT_TYPES[ct])(context, **data)
 
     #FIXME probably not RFC compilant
     def _negotiate(self, context):

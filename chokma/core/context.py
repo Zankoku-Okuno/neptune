@@ -28,7 +28,7 @@ class Request:
 class Response:
     def __init__(self):
         self._headers = []
-        self._body = None
+        self.body = None
 
 
 def _parse_accept(input):
