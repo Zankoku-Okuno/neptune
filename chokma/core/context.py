@@ -1,4 +1,4 @@
-from chokma.path import sanitize
+from chokma.util.path import sanitize
 
 
 from chokma.config import config

@@ -34,5 +34,5 @@ Projected Features
   * Virtual filesystem.
   * Marshal data between SQL and Python.
   * Generate database queries.
-  * Session, cookie, and CSRF protection utilities.
+  * Session, cookie, and auth utilities.
   * General template language, and specializations for HTML and CSS.

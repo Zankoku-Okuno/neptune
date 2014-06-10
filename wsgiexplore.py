@@ -1,11 +1,20 @@
 #! /usr/bin/env python3
 import sys, os
-os.environ['CHOKMA_CONFIG'] = '/home/edemko/Documents/chokma/test/config.py'
+from os import path
+os.environ['CHOKMA_CONFIG'] = path.join(path.dirname(path.abspath(__file__)), 'test/config.py')
 
-from chokma.context import Context
-from chokma.route import *
-from chokma.resource import *
-from chokma.render import *
+from chokma.core.context import Context
+from chokma.core.route import *
+from chokma.core.resource import *
+from chokma.core.render import *
+
+
+class Hello(Resource):
+    def GET(self, context):
+        return {}
+class End(Resource):
+    def GET(self, context, **params):
+        return {'params': params}
 
 class PrintHi(Renderer):
     def html(self, context):
@@ -29,37 +38,31 @@ class PrintInfo(Renderer):
             )
         yield from html.render(doc)
 
-class Hello(Resource):
-    _renderer = PrintHi()
-    def GET(self, context):
-        return {}
-class End(Resource):
-    _renderer = PrintInfo()
-    def GET(self, context, **params):
-        return {'params': params}
-
-
-
 def add5(ccontext, params, augment):
     augment['add'] = 5
-routes = (
-    Route(Literal('foo'), Literal('bar'), endpoint=Hello('hi')),
-    Route(Literal('foo'), Slug('bar'), Do(add5), endpoint=End('foo')),
-)
 
+routes = (
+    Route('hi', Hello(), PrintHi(),
+        Literal('foo'), Literal('bar')),
+    Route('foo', End(), PrintInfo(),
+        Literal('foo'), Slug('bar'), Do(add5)),
+)
 
 
 def application(environ, start_response):
     context = Context(environ)
     for route in routes:
         try:
-            response = route.go(context).response
-            status = '200 OK'
-            response_headers = response._headers
-            body = list(response._body)
-            break
+            endpoint, params = route.go(context)
         except Http404:
-            pass
+            continue
+        endpoint.resource.go(context, **params)
+        endpoint.renderer.go(context)
+        response = context.response
+        status = '200 OK'
+        response_headers = response._headers
+        body = list(response._body)
+        break
     else:
         status = '404 Not Found'
         response_headers = [( 'Content-Type', 'text/plain' )]

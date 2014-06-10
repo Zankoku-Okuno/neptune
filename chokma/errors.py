@@ -2,9 +2,9 @@ _CODES = {
 	200: "OK",
 
 	404: "Not Found",
-	406: "Not Acceptable"
+	406: "Not Acceptable",
 
-	500: "Internal Server Error"
+	500: "Internal Server Error",
 }
 
 class HttpError(Exception):

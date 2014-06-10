@@ -13,7 +13,6 @@ TODO
 
 
 FIXME
-	let the framework glue the pipes together, don't make implementors do it
 	setup.py
 	content negotation is not fully compliant
 		q=0.0

@@ -15,7 +15,6 @@ class Renderer:
         ct = self._negotiate(context)
         context.set_header('Content-Type', ct)
         context.response._body = self.__getattribute__(CONTENT_TYPES[ct])(context)
-        return context
 
     #FIXME probably not RFC compilant
     def _negotiate(self, context):

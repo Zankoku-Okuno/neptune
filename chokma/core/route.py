@@ -1,9 +1,11 @@
 from chokma.errors import Http404
 
 class Route:
-    def __init__(self, *segments, endpoint=None):
+    def __init__(self, name, resource, renderer, *segments):
+        self.name = name
+        self.resource = resource
+        self.renderer = renderer
         self._segs = tuple(segments)
-        self._end = endpoint
     
     def go(self, context):
         request = context.request
@@ -16,26 +18,26 @@ class Route:
         else:
             for attr, value in augment.items():
                 context.__setattr__(attr, value)
-            if self._end is None:
-                raise Exception("TODO bad config")
-            return self._end.go(context, **params)
+            return self, params
 
     def append(self, segment):
+        out = self.copy()
         if isinstance(segment, tuple):
-            segs = self._segs + segment
+            out._segs = out._segs + segment
         else:
-            segs = self._segs + (segment,)
-        return Route(segs, self._end)
+            out._segs = out._segs + (segment,)
+        return out
     
     def prepend(self, segment):
+        out = self.copy()
         if isinstance(segment, tuple):
-            segs = segment + self._segs
+            out._segs = segment + out._segs
         else:
-            segs = (segment,) + self._segs
-        return Route(segs, self._end)
+            out._segs = (segment,) + self._segs
+        return out
 
-    def endpoint(self, endpoint):
-        return Route(self._segs, endpoint)
+    def copy(self):
+        return Route(self.name, self.resource, self.renderer, *self._segs)
 
 
 class RouteSegment:
@@ -44,6 +46,7 @@ class RouteSegment:
 
     def reverse(self, context, params):
         raise NotImplementedException("%s.reverse()" % self.__class__.__name__)
+
 
 class Do(RouteSegment):
     def __init__(self, f):
