@@ -1,0 +1,21 @@
+TODO
+	logging (to file, email admin)
+	debug infodumps
+	virtual filesystem
+	sql query formatting (string + parameter merging)
+	sql marshalling
+
+
+
+
+FIXME
+	setup.py
+	content negotation is not fully compliant
+		q=0.0
+		parameters beyond q
+
+CONFIG
+	routes
+	recognized content-types
+	allowed HTTP methods
+	debug
