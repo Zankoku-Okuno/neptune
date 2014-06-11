@@ -92,13 +92,14 @@ def application(environ, start_response):
     start_response(status, response_headers)
     return body_acc
 
-from wsgiref.simple_server import make_server
-httpd = make_server('localhost', 8080, application)
-
-try:
+def main():
+    from wsgiref.simple_server import make_server
     print("Starting server...")
+    httpd = make_server('localhost', 8080, application)
     httpd.serve_forever()
-except KeyboardInterrupt:
+
+if __name__ == '__main__':
+    from reload import run_with_reloader
+    run_with_reloader(main)
     print("\nGoodbye!")
-    sys.exit(0)
 
