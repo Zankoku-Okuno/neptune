@@ -1,9 +1,9 @@
 #! /usr/bin/env python3
-import sys, os
+import sys, os, traceback
 from os import path
 os.environ['CHOKMA_CONFIG'] = path.join(path.dirname(path.abspath(__file__)), 'test/config.py')
 
-from chokma.errors import Http404
+from chokma.errors import HttpError, RouteMismatch
 from chokma.http.context import Context
 from chokma.http.pipeline import Endpoint, Route, Resource, Renderer
 from chokma.http.routing import *
@@ -21,7 +21,7 @@ class File(Resource):
         try:
             return {'filepath': fs.resolve('test', filename)}
         except ValueError:
-            raise Http404(context.request)
+            raise Http404(context)
 
 class PrintHi(Renderer):
     def html(self, context):
@@ -64,30 +64,43 @@ routes = (
 
 
 def application(environ, start_response):
-    context = Context(environ)
-    for endpoint in routes:
-        try:
-            params = endpoint.route.go(context)
-        except Http404:
-            continue
-        data = endpoint.resource.go(context, **params)
-        body = endpoint.renderer.go(context, **data)
-        context.response.body = body
-        status = '200 OK'
-        response_headers = context.response._headers
-        break
-    else:
-        status = '404 Not Found'
-        response_headers = [( 'Content-Type', 'text/plain' )]
-        body = ['Resource not found.\n'.encode('utf-8'),
-                str(context.request.path).encode('utf-8')
-               ]
+    try:
+        context = Context(environ)
+        for endpoint in routes:
+            try:
+                params = endpoint.route.go(context)
+            except RouteMismatch:
+                continue
+            data = endpoint.resource.go(context, **params)
+            body = endpoint.renderer.go(context, **data)
+            context.response.body = body
+            status = '200 OK'
+            response_headers = context.response._headers
+            break
+        else:
+            status = '404 Not Found'
+            response_headers = [( 'Content-Type', 'text/plain' )]
+            body = ['Resource not found.\n'.encode('utf-8'),
+                    str(context.request.path).encode('utf-8')
+                   ]
 
-    len_acc = 0
-    body_acc = []
-    for piece in body:
-        len_acc += len(piece)
-        body_acc.append(piece)
+        len_acc = 0
+        body_acc = []
+        for piece in body:
+            len_acc += len(piece)
+            body_acc.append(piece)
+    except HttpError as ex:
+        status = ex.status
+        response_headers = [( 'Content-Type', 'text/plain' )]
+        body_acc = [ex.status_str.encode('utf-8')]
+        len_acc = sum(map(len, body_acc))
+    except Exception as ex:
+        traceback.print_exc(file=sys.stderr)
+        status = '500 Internal Server Error'
+        response_headers = [( 'Content-Type', 'text/plain' )]
+        body_acc = [b"Internal server error."]
+        len_acc = sum(map(len, body_acc))
+    
     response_headers.append(( 'Content-Length', str(len_acc) ))
     start_response(status, response_headers)
     return body_acc

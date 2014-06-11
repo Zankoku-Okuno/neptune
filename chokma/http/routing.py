@@ -1,4 +1,4 @@
-from chokma.errors import Http404
+from chokma.errors import RouteMismatch
 
 
 class RouteSegment:
@@ -27,7 +27,7 @@ class Literal(RouteSegment):
         if path and path[0] == self._test:
             return path[1:]
         else:
-            raise Http404(context.request)
+            raise RouteMismatch()
     
     def reverse(self, context, params):
         return [self._test]
@@ -38,7 +38,7 @@ class ParamSegment(RouteSegment):
 
     def test(self, context, path, params, augment):
         if not path:
-            raise Http404(context.request)
+            raise RouteMismatch()
         params[self._name] = self.parse_argument(context, path[0])
         return path[1:]
 
@@ -57,7 +57,7 @@ class Natural(ParamSegment):
     def parse_argument(self, context, arg):
         for c in arg:
             if not ('0' <= c <= '9'):
-                raise Http404(context.request)
+                raise RouteMismatch()
         else:
             return int(arg)
     def render_argument(self, context, arg):

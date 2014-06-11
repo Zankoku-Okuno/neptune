@@ -1,4 +1,4 @@
-from chokma.errors import Http404, Http406
+from chokma.errors import RouteMismatch, Http405, Http406
 
 
 class Endpoint:
@@ -21,7 +21,7 @@ class Route:
         for seg in self._segs:
             path = seg.test(context, path, params, augment)
         if path:
-            raise Http404(request)
+            raise RouteMismatch()
         else:
             for attr, value in augment.items():
                 context.__setattr__(attr, value)
@@ -32,7 +32,7 @@ class Resource:
         try:
             action = self.__getattribute__(context.request.method.upper())
         except AttributeError:
-            raise Exception("TODO unsupported http method on this resource")
+            raise Http405(context)
         else:
             return action(context, **params)
 
@@ -57,7 +57,7 @@ class Renderer:
                 elif client == server:
                     return '/'.join(server)
         else:
-            raise Http406(context.request)
+            raise Http406(context)
 
     @property
     def targets(self):
