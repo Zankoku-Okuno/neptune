@@ -14,3 +14,5 @@ from os import path
 LOCATIONS = {
 	'test': path.dirname(path.abspath(__file__))
 }
+
+ENDPOINTS = 'test.project'

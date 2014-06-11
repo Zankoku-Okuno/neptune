@@ -12,7 +12,7 @@ class Context:
 
     def set_header(self, key, value):
         """Add a header to the HTTP response."""
-        self.response._headers.append((key, value))
+        self.response.set_header(key, value)
 
 class Request:
     def __init__(self, environ):
@@ -26,6 +26,12 @@ class Response:
         self._headers = []
         self.body = None
 
+    @property
+    def headers(self):
+        return self._headers
+
+    def set_header(self, key, value):
+        self._headers.append((key, value))
 
 def _parse_accept(input):
     from chokma.config import config

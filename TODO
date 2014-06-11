@@ -1,14 +1,15 @@
 TODO
+	sendfile
 	logging (to file, email admin)
-	error response
-		debug infodumps
 	sql query formatting (string + parameter merging)
 	sql marshalling
+	custom error responses
+    infodump on error in debug mode
 	formatting
 		html document header
 		html vocabulary extension
+		add'l formats
 	templates
-	sendfile
 
 
 FIXME
@@ -16,16 +17,15 @@ FIXME
 	content negotation is not fully compliant
 		q=0.0
 		parameters beyond q
+        strings in parameters
 
 
 FLESH OUT
 	route segments
 	HTML model
-	HTTP methods (redirect, 500)
 
 
 CONFIG
-	routes
 	recognized content-types
 	allowed HTTP methods
 	debug
