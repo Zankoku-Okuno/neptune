@@ -37,37 +37,58 @@ class Resource:
             return action(context, **params)
 
 class Renderer:
-    def go(self, context, **data):
+    def __init__(self):
+        # set up render functions to dispatch from a cannonical MIME type to its alias
         from chokma.config import config
-        ct = self._negotiate(context) #FIXME return ct and method here
+        if not hasattr(config, 'CONTENT_TYPES'):
+            return
+        # use a function creator here, because python is dumb about scope
+        # if we just used that lambda in-place, the value of 'name' would change each time through the loop
+        def create_alias(name):
+            return lambda context, **data: self.__getattribute__(name)(context, **data)
+        for ct, alias in config.CONTENT_TYPES.items():
+            pyct = _pythonize_mime(ct)
+            if not hasattr(self, pyct) and hasattr(self, alias):
+                self.__setattr__(pyct, create_alias(alias))
+
+    def go(self, context, **data):
+        ct, method = self._negotiate(context)
         context.set_header('Content-Type', ct)
-        return self.__getattribute__(config.CONTENT_TYPES[ct])(context, **data)
+        return self.__getattribute__(method)(context, **data)
 
     #FIXME probably not RFC compilant
     def _negotiate(self, context):
         for client in context.request.accept:
-            for server in self.targets:
-                if client == ('*', '*'):
-                    try:
-                        return self.default_content_type
-                    except AttributeError:
-                        pass # continue searching
-                elif client[1] == '*' and client[0] == server[0]:
-                    return '/'.join(server)
-                elif client == server:
-                    return '/'.join(server)
+            if client == ('*', '*'):
+                try:
+                    return self.default_content_type, _pythonize_mime(self.default_content_type)
+                except AttributeError:
+                    continue
+            elif client[1] == '*':
+                pyclient_prefix = _pythonize_mime(client[0]+'/')
+                # FIXME I should allow prefered mimetypes, in case the media range can match many methods
+                for method in dir(self):
+                    if method.startswith(pyclient_prefix):
+                        break
+                else:
+                    continue
+                # this heuristic simply lowercases the method, leaving underscores alone
+                # FIXME in case this heuristic fails, I need a more exact way to determine the delivered content type
+                # an additional heuristic is to see if there is an alias that would pythonize to the found method
+                # finally, I might just need to look up in a dictionary somewhere
+                server_suffix = method[len(pyclient_prefix):].lower()
+                server = client[0] + '/' + server_suffix
+                return server, method
+            else:
+                client = '/'.join(client)
+                pyclient = _pythonize_mime(client)
+                if hasattr(self, pyclient):
+                    return client, pyclient
         else:
             raise Http406(context)
 
-    @property
-    def targets(self):
-        from chokma.config import config
-        if hasattr(self, '_targets') and self._targets is not None:
-            return self._targets
-        acc = []
-        for ct, method in config.CONTENT_TYPES.items():
-            if hasattr(self, method):
-                acc.append(tuple(ct.split('/')))
-        acc = tuple(acc)
-        self._targets = acc
-        return acc
+def _pythonize_mime(mime):
+    py = ''
+    for c in mime.upper():
+        py += '_' if c in './-' else c
+    return py

@@ -7,7 +7,7 @@ CONTENT_TYPES = {
     'text/html': 'html',
     'application/json': 'json',
     'text/plain': 'text',
-    'application/octet-stream': 'bytes',
+    'application/octet-stream': 'binary',
 }
 
 from os import path

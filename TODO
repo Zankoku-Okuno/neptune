@@ -18,6 +18,7 @@ FIXME
 		parameters beyond q
         strings in parameters
     sendfile guess content type
+	content type reversal when matching against a 'blah/*' media range
 
 
 FLESH OUT
@@ -31,3 +32,4 @@ CONFIG
 	debug
 	error responses
 	sendfile chunk size
+	content type preferences, when a several server types are acceptable
