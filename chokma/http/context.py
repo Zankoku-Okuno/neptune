@@ -10,6 +10,8 @@ class Context:
         self.request = Request(environ)
         self.response = Response()
 
+    def has_header(self, key):
+        return self.response.has_header(key)
     def set_header(self, key, value):
         """Add a header to the HTTP response."""
         self.response.set_header(key, value)
@@ -30,6 +32,12 @@ class Response:
     def headers(self):
         return self._headers
 
+    def has_header(self, key):
+        for k, _ in self._headers:
+            if key == k:
+                return True
+        else:
+            return False
     def set_header(self, key, value):
         self._headers.append((key, value))
 

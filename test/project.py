@@ -15,18 +15,15 @@ class End(Resource):
 class File(Resource):
     def GET(self, context, filename):
         try:
-            return {'filepath': fs.resolve('test', filename)}
+            filepath = fs.resolve('test', filename)
         except ValueError:
             raise Http404(context)
+        context.set_header('Content-Type', 'text/plain')
+        raise fs.Sendfile(filepath)
 
 class PrintHi(Renderer):
     def html(self, context):
         yield b"Hello!"
-class PrintFile(Renderer):
-    default_content_type = 'text/plain'
-    def text(self, context, filepath = None):
-        with open(filepath, 'rb') as fp:
-            yield fp.read()
 class PrintInfo(Renderer):
     default_content_type = 'text/plain'
     def text(self, context):
@@ -52,7 +49,7 @@ def add5(ccontext, params, augment):
 endpoints = (
     Endpoint('hi', Hello(), PrintHi(),
         Route(Literal('foo'), Literal('bar')) ),
-    Endpoint('file', File(), PrintFile(),
+    Endpoint('file', File(), None,
         Route(Literal('file'), Slug('filename')) ),
     Endpoint('foo', End(), PrintInfo(),
         Route(Literal('foo'), Slug('bar'), Do(add5)) ),

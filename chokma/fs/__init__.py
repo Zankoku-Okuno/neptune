@@ -1,10 +1,10 @@
 from os import path
-from chokma.errors import BadConfiguration
 from chokma.util.path import sanitize
 from chokma.config import config
+from chokma.errors import BadConfiguration
 
-if not hasattr(config, 'LOCATIONS'):
-	raise BadConfiguration("Module chokma.fs requires LOCATIONS setting.")
+# if not hasattr(config, 'LOCATIONS'):
+#     raise BadConfiguration("Module chokma.fs requires LOCATIONS setting.")
 
 def resolve(location_name, strpath):
     return path.join(config.LOCATIONS[location_name], sanitize(strpath))
@@ -17,3 +17,7 @@ def desolve(location_name, strpath):
         return strpath[len(leading_path):]
     else:
         raise ValueError("Can't remove location from path.") #TODO better msg
+
+class Sendfile(Exception):
+    def __init__(self, filepath):
+        self.filepath = filepath
