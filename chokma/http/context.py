@@ -22,11 +22,14 @@ class Request:
         self.path = environ['PATH_INFO'].strip('/').split('/')
         self.method = environ['REQUEST_METHOD']
         self.accept = _parse_accept(environ['HTTP_ACCEPT'])
+        if environ['CONTENT_LENGTH']:
+            self.body = environ['wsgi.input'].read(int(environ['CONTENT_LENGTH'])) #FIXME make it lazy 
 
 class Response:
-    def __init__(self):
+    def __init__(self, code=200):
         self._headers = []
         self.body = None
+        self.code = code
 
     @property
     def headers(self):
@@ -40,6 +43,11 @@ class Response:
             return False
     def set_header(self, key, value):
         self._headers.append((key, value))
+
+class EmptyResponse(Exception):
+    def __init__(self, code=200):
+        self.code = code
+
 
 def _parse_accept(input):
     from chokma.config import config

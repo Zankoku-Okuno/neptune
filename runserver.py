@@ -12,5 +12,4 @@ if __name__ == '__main__':
     os.environ['CHOKMA_CONFIG'] = 'test.config'
     from reload import run_with_reloader
     run_with_reloader(main)
-    print("\nGoodbye!")
 

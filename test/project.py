@@ -26,10 +26,10 @@ class PrintHi(Renderer):
         yield b"Hello!"
 class PrintInfo(Renderer):
     default_content_type = 'text/plain'
-    def text(self, context):
+    def text(self, context, params):
         yield str(context.add).encode('utf-8')
         yield b"\n"
-        yield str(context.params).encode('utf-8')
+        yield str(params).encode('utf-8')
         yield b"\n"
         yield str(context.request.accept).encode('utf-8')
     def html(self, context, params):

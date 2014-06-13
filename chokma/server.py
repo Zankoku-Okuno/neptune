@@ -1,9 +1,10 @@
 import sys, os, traceback
 from os import path
 
-from chokma.http.context import Context, Response
-from chokma.errors import HttpError, RouteMismatch
-from chokma.fs import Sendfile
+from chokma.http.context import Context, Response, EmptyResponse
+from chokma import http
+from chokma import fs
+from chokma.errors import HttpError, Http404, RouteMismatch
 
 from chokma.config import config
 from importlib import import_module
@@ -11,24 +12,27 @@ endpoints = import_module(config.ENDPOINTS).endpoints
 
 def chokma_app(environ, start_response):
     try:
-        context = Context(environ)
-        response = _normal_response(context)
-        length, body = 0, []
-        for x in response.body:
-            length += len(x)
-            body.append(x)
-        response.set_header('Content-Length', str(length))
-        response.body = body
-    
-    except Sendfile as exn:
-        response = _file_response(context, exn.filepath)
+        try:
+            context = Context(environ)
+            response = _normal_response(context)
+            length, body = 0, []
+            for x in response.body:
+                length += len(x)
+                body.append(x)
+            response.set_header('Content-Length', str(length))
+            response.body = body
+        
+        except EmptyResponse as exn:
+            response = _empty_response(context, exn.code)
+        except fs.Sendfile as exn:
+            response = _file_response(context, exn.filepath)
     except HttpError as exn:
         response = _http_error(exn)
     except Exception as exn:
         traceback.print_exc(file=sys.stderr)
         response = _exn_response(exn)
     
-    start_response(response.status, response.headers)
+    start_response(http.format_code(response.code), response.headers)
     return response.body
 
 
@@ -37,47 +41,48 @@ def _normal_response(context):
         try:
             params = endpoint.route.go(context)
             data = endpoint.resource.go(context, **params)
+            if data is None:
+                data = dict()
             body = endpoint.renderer.go(context, **data)
+            if body is None:
+                body = [b'']
             context.response.body = body
-            context.response.status = '200 OK'
             return context.response
         except RouteMismatch:
             continue
     else:
         raise Http404(context)
 
+def _empty_response(context, code):
+    response = context.response
+    response.code = code
+    response.set_header('Content-Length', '0')
+    response.body = [b'']
+    return response
+
 def _file_response(context, filepath):
     if not path.isfile(filepath):
-        return _http_error(Http404())
+        raise Http404(context)
     
     response = context.response
-    response.status = '200 OK'
+    response.code = 200
     if not context.has_header('Content-Type'):
         pass #STUB guess content type, or else application/octet-stream
     stat = os.stat(filepath)
     context.set_header('Content-Length', str(stat.st_size))
-    def body():
-        chunk_size = 1024 #TODO make configurable
-        with open(filepath, 'rb') as fp:
-            while True:
-                data = fp.read(chunk_size)
-                if not data:
-                    break
-                yield data
-    response.body = body()
+    chunk_size = 1024 #TODO make configurable
+    response.body = fs.file_chunks(filepath, chunk_size=chunk_size)
     return response
 
 def _http_error(exn):
-    response = Response()
-    response.status = exn.status
+    response = Response(exn.code)
     response.set_header('Content-Type', 'text/plain')
-    response.body = [exn.status_str.encode('utf-8')]
+    response.body = [http.format_code(exn.code, no_number=True).encode('utf-8')]
     response.set_header('Content-Length', str(sum(map(len, response.body))))
     return response
 
 def _exn_response(exn):
-    response = Response()
-    response.status = '500 Internal Server Error'
+    response = Response(500)
     response.set_header('Content-Type', 'text/plain')
     response.body = [b"Internal server error."]
     response.set_header('Content-Length', str(sum(map(len, response.body))))

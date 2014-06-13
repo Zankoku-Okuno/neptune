@@ -1,5 +1,7 @@
 TODO
+	reverse urls
 	logging (to file, email admin)
+	redirect
 	sql query formatting (string + parameter merging)
 	sql marshalling
 	custom error responses
