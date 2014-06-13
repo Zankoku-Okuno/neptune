@@ -1,4 +1,21 @@
-from chokma.errors import RouteMismatch
+from chokma.errors import RouteMismatch, BadConfiguration
+
+
+def reverse_url(name, context, **params):
+    from chokma.config import config
+    from importlib import import_module
+    endpoints = import_module(config.ENDPOINTS).endpoints
+    for endpoint in endpoints:
+        if endpoint.name == name:
+            try:
+                url = endpoint.route.reverse(context, **params)
+                return config.DOMAIN + url
+            except RouteMismatch:
+                continue
+    else:
+        raise BadConfiguration("Can't reverse url (%s) with parameters %s." % (name, params))
+
+
 
 
 class RouteSegment:
@@ -16,8 +33,8 @@ class Do(RouteSegment):
     def test(self, context, path, params, augment):
         self._f(context, params, augment)
 
-    def reverse(self):
-        return None
+    def reverse(self, context, **params):
+        return []
 
 class Literal(RouteSegment):
     def __init__(self, test):
@@ -29,7 +46,7 @@ class Literal(RouteSegment):
         else:
             raise RouteMismatch()
     
-    def reverse(self, context, params):
+    def reverse(self, context, **params):
         return [self._test]
 
 class ParamSegment(RouteSegment):
@@ -42,10 +59,10 @@ class ParamSegment(RouteSegment):
         params[self._name] = self.parse_argument(context, path[0])
         return path[1:]
 
-    def reverse(self, context, params):
+    def reverse(self, context, **params):
         if self._name not in params:
-            raise Exception("TODO missing argument when reversing path")
-        return self.render_argument(context, params[self._name])
+            raise RouteMismatch()
+        return [self.render_argument(context, params[self._name])]
 
 class Slug(ParamSegment):
     def parse_argument(self, context, arg):
@@ -61,4 +78,7 @@ class Natural(ParamSegment):
         else:
             return int(arg)
     def render_argument(self, context, arg):
-        return str(arg)
+        if isinstance(arg, int) and 0 <= arg:
+            return str(arg)
+        else:
+            raise RouteMismatch()

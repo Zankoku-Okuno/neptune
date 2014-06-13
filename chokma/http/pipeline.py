@@ -1,3 +1,4 @@
+from urllib.parse import quote
 from chokma.errors import RouteMismatch, Http405, Http406
 
 
@@ -26,6 +27,12 @@ class Route:
             for attr, value in augment.items():
                 context.__setattr__(attr, value)
             return params
+
+    def reverse(self, context, **params):
+        acc = []
+        for seg in self._segs:
+            acc += seg.reverse(context, **params)
+        return '/'.join(map(lambda x: quote(x, safe=''), acc))
 
 class Resource:
     def go(self, context, **params):

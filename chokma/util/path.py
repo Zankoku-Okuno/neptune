@@ -1,7 +1,7 @@
 from os import path
 
 _illegal_parts = {'', '.', '..'}
-def sanitize(strpath, strict=True, split=False):
+def sanitize(strpath, strict=False, split=False):
     """Return a normalized, relative path if possible."""
     parts = []
     for part in strpath.strip('/').split('/'):

@@ -3,6 +3,7 @@ from chokma.http.pipeline import Endpoint, Route, Resource, Renderer
 from chokma.errors import Http404
 from chokma.http.routing import *
 from chokma import fs
+from chokma import html
 
 
 
@@ -23,7 +24,13 @@ class File(Resource):
 
 class PrintHi(Renderer):
     def html(self, context):
-        yield b"Hello!"
+        doc = html.Document(
+            html.p(b"Hello!"),
+            html.p(html.a("Voodoo Child").attr(
+                'href', reverse_url('file', context, filename='voodoo') 
+            )),
+        )
+        yield from html.render(doc)
 class PrintInfo(Renderer):
     default_content_type = 'text/plain'
     def text(self, context, params):
@@ -33,7 +40,6 @@ class PrintInfo(Renderer):
         yield b"\n"
         yield str(context.request.accept).encode('utf-8')
     def html(self, context, params):
-        from chokma import html
         doc = html.Document()
         doc.title = "wsgiexplore info"
         doc.append(

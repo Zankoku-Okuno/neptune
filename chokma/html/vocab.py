@@ -1,12 +1,13 @@
 from chokma.html.base import Element, NullaryElement, render
 
 class Document:
-    def __init__(self):
+    def __init__(self, *elems):
         self.title = None
-        self._body = []
+        self._body = elems
 
     def append(self, *elems):
         self._body += elems
+        return self
 
     @property
     def html_gen(self):
@@ -32,3 +33,5 @@ class p(Element): tagname = b'p'
 class div(Element): tagname = b'div'
 
 class br(NullaryElement): tagname = b'br'
+
+class a(Element): tagname = b'a'

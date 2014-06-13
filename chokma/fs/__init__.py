@@ -6,8 +6,8 @@ from chokma.errors import BadConfiguration
 if not hasattr(config, 'LOCATIONS'):
     raise BadConfiguration("Module chokma.fs requires LOCATIONS setting.")
 
-def resolve(location_name, strpath):
-    return path.join(config.LOCATIONS[location_name], sanitize(strpath))
+def resolve(location_name, *strpath):
+    return path.join(config.LOCATIONS[location_name], *map(sanitize, strpath))
 
 def desolve(location_name, strpath):
     leading_path = config.LOCATIONS[location_name]
@@ -16,7 +16,7 @@ def desolve(location_name, strpath):
     if strpath.startswith(leading_path):
         return strpath[len(leading_path):]
     else:
-        raise ValueError("Can't remove location from path.") #TODO better msg
+        raise ValueError("Path is not under given location.")
 
 
 class Sendfile(Exception):

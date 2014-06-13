@@ -1,7 +1,5 @@
 TODO
-	reverse urls
 	logging (to file, email admin)
-	redirect
 	sql query formatting (string + parameter merging)
 	sql marshalling
 	custom error responses
@@ -11,6 +9,10 @@ TODO
 		html vocabulary extension
 		add'l formats
 	templates
+	shortcuts
+		redirect
+		fs.open404
+	auth
 
 
 FIXME
@@ -21,6 +23,7 @@ FIXME
         strings in parameters
     sendfile guess content type
 	content type reversal when matching against a 'blah/*' media range
+	url reversal: url escape
 
 
 FLESH OUT
@@ -29,9 +32,9 @@ FLESH OUT
 
 
 CONFIG
-	recognized content-types
 	allowed HTTP methods
 	debug
 	error responses
 	sendfile chunk size
 	content type preferences, when a several server types are acceptable
+	project-wide default content-type
