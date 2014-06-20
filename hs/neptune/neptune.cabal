@@ -5,8 +5,8 @@ name:                neptune
 version:             0.0.0.0
 synopsis:            Plumbing for mature REST services.
 description:         Implementations of the REST architecture nearly always ignore some
-                     architectural constraints. Further, I've yet to see a REST framework that
-                     is not specialized to only web services. Neptune includes facilities for
+                     architectural constraints. Further, I've yet to see a "REST" framework that
+                     is not specialized to only HTTP services. Neptune includes facilities for
                      resources, verbs, content negotiation, code-on-demand and hypermedia, all
                      while remaining protocol-independent.
                      .

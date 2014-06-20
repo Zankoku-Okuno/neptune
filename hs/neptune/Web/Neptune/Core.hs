@@ -56,10 +56,10 @@ type Neptune = NeptuneM ()
 buildNeptune :: Neptune
              -> NeptuneState
 buildNeptune = flip execState zero . unNeptune 
-	where
-	zero = NS { nHandlers = []
-	          , nReversers = Map.empty
-	          }
+    where
+    zero = NS { nHandlers = []
+              , nReversers = Map.empty
+              }
 
 
 {-
@@ -74,6 +74,9 @@ data Result a = Normal a
               | Error Wai.Status
               | WaiResult Wai.Response --only to be used internally or by extenders
 
+class ResultMonad m where
+    raise :: Result a -> m a
+
 
 {-
 Handling includes everything after a successful route match.
@@ -81,14 +84,15 @@ Handling includes everything after a successful route match.
 
 {-
 Routing takes place using a route monad, which must keep some state:
-	path remaining to match
-	method to match
-	parameter accumulation
-Reversing a url is a process of building up a PathInfo from a vault
+    path remaining to match
+    method to match
+    parameter accumulation
+Reversing a url is a process of building up a PathInfo from a vault.
+A Route includes formaulae to both match an incoming URL and produce an outgoing url
 -}
 data Route = R Router Reverse
 
-newtype RouterM a = Router { unRoute :: StateT RoutingState (MaybeT (ResultT IO)) a }
+newtype RouterM a = Router { unRoute :: StateT RoutingState (MaybeT (WriterT [Method] (ResultT IO))) a }
     deriving (Functor, Applicative, Monad, MonadIO)
 data RoutingState = RS { rPath :: PathInfo
                        , rMethod :: Method
@@ -98,11 +102,18 @@ data RoutingState = RS { rPath :: PathInfo
 type Router = RouterM ()
 runRouteM :: RoutingState
           -> RouterM a
-          -> ResultT IO (Maybe RoutingState)
+          -> WriterT [Method] (ResultT IO) (Maybe RoutingState)
 runRouteM s = runMaybeT . flip execStateT s . unRoute
+runRoutesM :: WriterT [Method] (ResultT IO) (Maybe a)
+           -> ResultT IO (Either [Method] a)
+runRoutesM action = do
+    (m_result, allowed) <- runWriterT action
+    return $ case m_result of
+        Nothing -> Left allowed
+        Just result -> Right result
 
 newtype ReverseM a = Reverse { unReverse :: ReaderT Vault (WriterT [Text] Maybe) a}
-	deriving (Functor, Applicative, Monad)
+    deriving (Functor, Applicative, Monad)
 type Reverse = ReverseM ()
 runReverseM :: Vault
             -> ReverseM a
@@ -144,7 +155,7 @@ runFormatM s = flip runReaderT s . unFormat
 {- These functions are here to help dispatch processes. -}
 evalHandler :: RoutingState
             -> Handler
-            -> ResultT IO (Maybe (Vault, Action))
+            -> WriterT [Method] (ResultT IO) (Maybe (Vault, Action))
 evalHandler s (Endpoint route method action) = do
     result <- runRouteM s route
     case result of
@@ -152,7 +163,7 @@ evalHandler s (Endpoint route method action) = do
         Just result ->
             if null (rPath result) && method == rMethod result
                 then return $ Just (rParams result, action)
-                else return Nothing
+                else const Nothing <$> tell [method]
 evalHandler s (Include route subhandlers) = do
     result <- runRouteM s route
     case result of
@@ -160,7 +171,7 @@ evalHandler s (Include route subhandlers) = do
         Just s' -> evalHandlers s' subhandlers
 evalHandlers :: RoutingState
              -> [Handler]
-             -> ResultT IO (Maybe (Vault, Action))
+             -> WriterT [Method] (ResultT IO) (Maybe (Vault, Action))
 evalHandlers s [] = return Nothing
 evalHandlers s (h:hs) = do
     m_result <- evalHandler s h
@@ -205,6 +216,15 @@ instance MonadTrans ResultT where
 instance MonadIO m => MonadIO (ResultT m) where
     liftIO = lift . liftIO
 
+instance Monad m => ResultMonad (ResultT m) where
+    raise = ResultT . return
+instance ResultMonad RouterM where
+    raise = Router . lift . lift .lift . ResultT . return
+instance ResultMonad ActionM where
+    raise = Action . lift . ResultT . return
+instance ResultMonad FormatM where
+    raise = Format . lift . ResultT . return
+
 
 
 
@@ -226,10 +246,13 @@ neptuneApp :: Neptune -> Wai.Application
 neptuneApp neptune =
     let builtNeptune = buildNeptune neptune
         app request respond = (respond =<<) . handleResult $ do
-            (vault, action) <- fromMaybeM (raiseError Wai.status404) $
-                            evalHandlers (mkRoutingState request) (nHandlers builtNeptune)
-            (formats, state) <- runActionM (mkActionState request vault) action
-            format <- maybe (raiseError Wai.status406) return $ negotiate request formats
+            m_route <- runRoutesM $ evalHandlers (mkRoutingState request) (nHandlers builtNeptune)
+            (vault, action) <- case m_route of
+                Left [] -> raise $ Error Wai.status404
+                Left allowed -> raise $ Error Wai.status405 --FIXME set allowed header (use minimal request/response interface)
+                Right route -> return route
+            (formats, state) <- runActionM (mkHandlingState request vault) action
+            format <- maybe (raise $ Error Wai.status406) return $ negotiate request formats
             runFormatM state format
     in app --TODO make sure exceptions get turned into http500
     where
@@ -238,19 +261,16 @@ neptuneApp neptune =
         Normal x' -> return x'
         Error status -> undefined --STUB
         WaiResult x' -> return x'
+    mkRoutingState :: Request -> RoutingState
+    mkRoutingState request = RS { rRequest = request
+                                , rMethod = Wai.requestMethod request
+                                , rPath = Wai.pathInfo request
+                                , rParams = Vault.empty
+                                }
+    mkHandlingState :: Request -> Vault -> HandlingState
+    mkHandlingState request vault = HS { aRequest = request
+                                       , aParams = vault
+                                       , aResponse = (Wai.status200, [])
+                                       }
 
-mkRoutingState :: Request -> RoutingState
-mkRoutingState request = RS { rRequest = request
-                          , rMethod = Wai.requestMethod request
-                          , rPath = Wai.pathInfo request
-                          , rParams = Vault.empty
-                          }
-mkActionState :: Request -> Vault -> HandlingState
-mkActionState request vault = HS { aRequest = request
-                                 , aParams = vault
-                                 , aResponse = (Wai.status200, [])
-                                 }
 
-
-raiseError :: (Monad m) => Wai.Status -> ResultT m a
-raiseError = ResultT . return . Error
