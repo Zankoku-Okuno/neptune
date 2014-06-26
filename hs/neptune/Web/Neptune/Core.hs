@@ -3,10 +3,15 @@ module Web.Neptune.Core where
 
 import Web.Neptune.Util
 
+import Data.Time.Clock
+
+import Data.String (IsString(..))
+import Data.Default
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Vault.Lazy (Vault)
 import qualified Data.Vault.Lazy as Vault
+import Data.ByteString.Lazy (ByteString)
 
 import Control.Monad.Identity
 import Control.Monad.Maybe
@@ -15,6 +20,7 @@ import Control.Monad.Writer
 import Control.Monad.State
 
 import qualified Network.Wai as Wai
+import qualified Network.Wai.Parse as Wai
 import qualified Network.HTTP.Types as Wai
 import qualified Network.HTTP.Media as Wai
 
@@ -28,13 +34,50 @@ import qualified Network.HTTP.Media as Wai
 
 --FIXME these need to be abstracted over
 type EndpointId = Text
-type Request = Wai.Request
 type PathInfo = [Text]
 type Method = Wai.Method
 type MediaType = Wai.MediaType
-type Response = (Wai.Status, Wai.ResponseHeaders)
+type AcceptMedia = [Wai.Quality MediaType]
+type Language = Text --FIXME
+type AcceptLang = [Wai.Quality Language]
+type AppState = ByteString
+type Expiry = Integer --number of seconds into the future
+type Attachment = Wai.FileInfo ByteString
 
+data Request = Request
+    { url :: PathInfo
+    , verb :: Method
+    , acceptType :: AcceptMedia
+    , acceptLang :: AcceptLang
+    , applicationState :: Map Text AppState
+    , parameters :: Map Text [ByteString]
+    , attachments :: Map Text [Attachment]
+    , reqBody :: ByteString
+    }
+data Response = Response
+    { mimetype :: Maybe MediaType
+    , language :: Maybe Language
+    , cacheFor :: Maybe Expiry
+    , updateAppState :: Map Text (Maybe (AppState, Maybe Expiry))
+    , body :: ByteString --FIXME more options for things to return
+    }
+              | EmptyResponse Response Text --the Text is like an error code
+              | Redirect      PathInfo Bool --the Bool means it is permanent
+              | BadResource
+              | BadMethod     [Method]
+              | BadMimetype   --(!use the Accept-Ranges response header!)
+              | BadLanguage
+              | NotAuthorized
+              | InternalError
 
+instance Default Response where
+    def = Response
+        { mimetype = Nothing
+        , language = Nothing
+        , cacheFor = Nothing
+        , updateAppState = Map.empty
+        , body = ""
+        }
 
 
 
@@ -71,8 +114,7 @@ by the type system. The application developer may escape the pipeline at any poi
 for a variety of reasons using this monad.
 -}
 data Result a = Normal a
-              | Error Wai.Status
-              | WaiResult Wai.Response --only to be used internally or by extenders
+              | Alternate Response
 
 class ResultMonad m where
     raise :: Result a -> m a
@@ -95,7 +137,6 @@ data Route = R Router Reverse
 newtype RouterM a = Router { unRoute :: StateT RoutingState (MaybeT (WriterT [Method] (ResultT IO))) a }
     deriving (Functor, Applicative, Monad, MonadIO)
 data RoutingState = RS { rPath :: PathInfo
-                       , rMethod :: Method
                        , rParams :: Vault
                        , rRequest :: Request
                        }
@@ -126,9 +167,10 @@ The handling process includes everything after the successful route match.
 -}
 data Handler = Endpoint Router Method Action
              | Include Router [Handler]
-data HandlingState = HS { aRequest :: Request
-                        , aParams :: Vault
-                        , aResponse :: Response
+data HandlingState = HS { hRequest :: Request
+                        , hParams :: Vault
+                        , hResponse :: Response
+                        , hReversers :: Map EndpointId Reverse
                         }
 
 {-
@@ -145,7 +187,7 @@ runActionM s = flip runStateT s . unAction
 
 newtype FormatM a = Format { unFormat :: ReaderT HandlingState (ResultT IO) a }
     deriving (Functor, Applicative, Monad, MonadIO)
-type Format = FormatM Wai.Response
+type Format = FormatM ByteString
 runFormatM :: HandlingState
            -> FormatM a
            -> ResultT IO a
@@ -161,7 +203,7 @@ evalHandler s (Endpoint route method action) = do
     case result of
         Nothing -> return Nothing
         Just result ->
-            if null (rPath result) && method == rMethod result
+            if null (rPath result) && method == verb (rRequest result)
                 then return $ Just (rParams result, action)
                 else const Nothing <$> tell [method]
 evalHandler s (Include route subhandlers) = do
@@ -179,10 +221,8 @@ evalHandlers s (h:hs) = do
         Nothing -> evalHandlers s hs
         Just result -> return $ Just result
 
-negotiate :: Request -> [(MediaType, a)] -> Maybe a
-negotiate request formats = Wai.parseAccept acceptText >>= Wai.mapAccept formats
-    where
-    acceptText = fromMaybe "*/*" . lookup "Accept" $ Wai.requestHeaders request
+negotiate :: Request -> [(MediaType, (MediaType, a))] -> Maybe (MediaType, a)
+negotiate request formats = Wai.mapAccept formats (acceptType request)
 
 
 {- Below are instances for the result monad and monad transformer. -}
@@ -194,8 +234,7 @@ instance Applicative Result where
 instance Monad Result where
     return = Normal
     Normal x >>= k = k x
-    Error x >>= k = Error x
-    WaiResult x >>= k = WaiResult x
+    Alternate x >>= k = Alternate x
 
 newtype ResultT m a = ResultT { unResultT :: m (Result a) }
 runResultT :: (Monad m) => ResultT m a -> m (Result a)
@@ -209,8 +248,7 @@ instance Monad m => Monad (ResultT m) where
     return = ResultT . return . Normal
     x >>= k = ResultT $ unResultT x >>= \x'wrap -> case x'wrap of
         Normal x' -> unResultT . k $ x'
-        Error x' -> return (Error x')
-        WaiResult x' -> return (WaiResult x')
+        Alternate x' -> return (Alternate x')
 instance MonadTrans ResultT where
     lift = ResultT . liftM Normal
 instance MonadIO m => MonadIO (ResultT m) where
@@ -239,38 +277,69 @@ instance ResultMonad FormatM where
 
 
 
-
+waiToNeptune :: Wai.Request -> Request
+waiToNeptune r = Request
+    { url = Wai.pathInfo r
+    , verb = Wai.requestMethod r
+    , acceptType = acceptType
+    , acceptLang = error "toNeptune: get acceptLang" --STUB
+    , appState = error "toNeptune: get appState" --STUB
+    , parameters = error "toNeptune: get parameters" --STUB
+    , attachments = error "toNeptune: get attachments" --STUB
+    , reqBody = error "toNeptune: get reqBody" --STUB
+    }
+    where
+    headers = Wai.requestHeaders r
+    acceptType = let accept = fromMaybe "*/*" $ "Accept" `lookup` headers
+                 in fromMaybe [] $ Wai.parseAccept accept
+waiFromNeptune :: Response -> Wai.Response
+waiFromNeptune r@(Response {}) = Wai.responseLBS Wai.status200 headers (body r) --FIXME add headers
+    where
+    headers = mimeHeader ++ langHeader ++ cacheHeader ++ cookies
+    mimeHeader = case mimetype r of
+        Nothing -> []
+        Just mt -> [("Content-Type", fromString . show $ mt)]
+    langHeader = [] --STUB
+    cacheHeader = case cacheFor r of
+        Nothing -> [ ("Cache-Control", "private, max-age=0, no-cache, no-store")]
+        Just dt -> [ ("Cache-Control", "no-transform, public, max-age=" <> (fromString . show) dt)
+                   , ("Vary", "Accept,Accept-Language,Accept-Encoding") ] --TODO check that this is all varying needed
+    cookies = [] --STUB
+waiFromNeptune _ = error "waiFromNeptune: alternate responses" --STUB
 
 
 neptuneApp :: Neptune -> Wai.Application
-neptuneApp neptune =
-    let builtNeptune = buildNeptune neptune
-        app request respond = (respond =<<) . handleResult $ do
-            m_route <- runRoutesM $ evalHandlers (mkRoutingState request) (nHandlers builtNeptune)
-            (vault, action) <- case m_route of
-                Left [] -> raise $ Error Wai.status404
-                Left allowed -> raise $ Error Wai.status405 --FIXME set allowed header (use minimal request/response interface)
-                Right route -> return route
-            (formats, state) <- runActionM (mkHandlingState request vault) action
-            format <- maybe (raise $ Error Wai.status406) return $ negotiate request formats
-            runFormatM state format
-    in app --TODO make sure exceptions get turned into http500
+neptuneApp neptune = app --TODO make sure exceptions get turned into http500
     where
+    builtNeptune = buildNeptune neptune
+    app waiRequest respond = (respond =<<) . handleResult $ do
+        let request = waiToNeptune waiRequest
+        m_route <- runRoutesM $ evalHandlers (mkRoutingState request) (nHandlers builtNeptune)
+        (vault, action) <- case m_route of
+            Left [] -> raise $ Alternate BadResource
+            Left allowed -> raise $ Alternate (BadMethod allowed)
+            Right route -> return route
+        (pre_formats, state) <- runActionM (mkHandlingState request vault) action
+        let formats = (\(mt, f) -> (mt, (mt, f))) <$> pre_formats
+        (mimetype, format) <- maybe (raise $ Alternate BadMimetype) return $ negotiate request formats
+        let state' = state { hResponse = (hResponse state) {mimetype = Just mimetype} }
+        body <- runFormatM state' format
+        return . waiFromNeptune $ (hResponse state') { body = body }
+
     handleResult :: ResultT IO Wai.Response -> IO Wai.Response
     handleResult x = runResultT x >>= \res -> case res of
         Normal x' -> return x'
-        Error status -> undefined --STUB
-        WaiResult x' -> return x'
+        Alternate response -> return $ waiFromNeptune response
     mkRoutingState :: Request -> RoutingState
     mkRoutingState request = RS { rRequest = request
-                                , rMethod = Wai.requestMethod request
-                                , rPath = Wai.pathInfo request
+                                , rPath = url request
                                 , rParams = Vault.empty
                                 }
     mkHandlingState :: Request -> Vault -> HandlingState
-    mkHandlingState request vault = HS { aRequest = request
-                                       , aParams = vault
-                                       , aResponse = (Wai.status200, [])
+    mkHandlingState request vault = HS { hRequest = request
+                                       , hParams = vault
+                                       , hResponse = def
+                                       , hReversers = nReversers builtNeptune
                                        }
 
 

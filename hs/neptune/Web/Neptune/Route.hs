@@ -3,6 +3,7 @@ module Web.Neptune.Route (
       endpoint
     , include
     -- route combinators
+    , zero
     , literal
     , capture
     -- low-level route matching combinators
@@ -88,6 +89,9 @@ instance Monoid Route where
     mempty = R (return ()) (return ())
     (R fore1 back1) `mappend` (R fore2 back2) = R (fore1 >> fore2) (back1 >> back2)
 
+
+zero :: Route
+zero = mempty
 
 literal :: Text -> Route
 literal path = R fore back
