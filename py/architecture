@@ -1,8 +1,0 @@
-Chokma's architecture is simple. A request comes in, is routed to a resource, which is then rendered to a response. If this seems too simple, good. Usually the simplest way to do something is simpler than expected.
-
-Routing tests the requested URL against a number of URL schema. This could be optimized under the hood, but in the API, this is exactly how it works.
-
-A resource dispatches to one of its methods based on the request method. Inside, the function should simply obtain whatever data in python (from databases, file, &c).
-
-A renderer dispatches to one of its methods based on the request accept header. There, it should populate a builder, which is merely an iterable of bytestrings.
-
