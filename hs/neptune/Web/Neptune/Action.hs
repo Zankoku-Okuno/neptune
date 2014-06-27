@@ -21,7 +21,7 @@ instance RequestMonad ActionM where
 
 instance ReverseMonad ActionM where
     url eid args = do
-        s <- Action get
+        s <- hNeptune <$> Action get
         case reverseUrl s eid args of
             Nothing -> raise $ NoUrlReverse eid args
             Just res -> return res

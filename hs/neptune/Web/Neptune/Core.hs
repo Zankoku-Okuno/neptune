@@ -34,6 +34,7 @@ import qualified Network.HTTP.Media as Wai
 
 --FIXME these need to be abstracted over
 type EndpointId = Text
+type Domain = Text
 type PathInfo = [Text]
 type Method = Wai.Method
 type MediaType = Wai.MediaType
@@ -96,14 +97,17 @@ newtype NeptuneM a = NeptuneM { unNeptune :: State NeptuneState a }
     deriving (Functor, Applicative, Monad)
 data NeptuneState = NS { nHandlers :: [Handler]
                        , nReversers :: Map EndpointId Reverse
+                       , nDomain :: Domain
                        } --TODO error formatters
 type Neptune = NeptuneM ()
-buildNeptune :: Neptune
+buildNeptune :: Domain
+             -> Neptune
              -> NeptuneState
-buildNeptune = flip execState zero . unNeptune 
+buildNeptune domain = flip execState zero . unNeptune 
     where
     zero = NS { nHandlers = []
               , nReversers = Map.empty
+              , nDomain = domain
               }
 
 
@@ -127,7 +131,7 @@ class Monad m => RequestMonad m where
 class Monad m => ParamMonad m where
     param :: Key a -> m (Maybe a)
 class Monad m => ReverseMonad m where
-    url :: EndpointId -> Vault -> m PathInfo
+    url :: EndpointId -> Vault -> m (Domain, PathInfo)
 
 
 {-
@@ -163,13 +167,13 @@ runRoutesM action = do
         Nothing -> Left allowed
         Just result -> Right result
 
-newtype ReverseM a = Reverse { unReverse :: ReaderT Vault (WriterT [Text] Maybe) a}
+newtype ReverseM a = Reverse { unReverse :: ReaderT Vault (StateT (Maybe Domain, PathInfo) Maybe) a}
     deriving (Functor, Applicative, Monad)
 type Reverse = ReverseM ()
 runReverseM :: Vault
             -> Reverse
-            -> Maybe [Text]
-runReverseM s = execWriterT . flip runReaderT s . unReverse
+            -> Maybe (Maybe Domain, PathInfo)
+runReverseM s = flip execStateT (Nothing, []) . flip runReaderT s . unReverse
 
 {-
 A handler matches routes to handling actions.
@@ -180,7 +184,7 @@ data Handler = Endpoint Router Method Action
 data HandlingState = HS { hRequest :: Request
                         , hParams :: Vault
                         , hResponse :: Response
-                        , hReversers :: Map EndpointId Reverse
+                        , hNeptune :: NeptuneState
                         }
 
 {-
@@ -234,8 +238,14 @@ evalHandlers s (h:hs) = do
 negotiate :: Request -> [(MediaType, (MediaType, a))] -> Maybe (MediaType, a)
 negotiate request formats = Wai.mapAccept formats (acceptType request)
 
-reverseUrl :: HandlingState -> EndpointId -> Vault -> Maybe PathInfo --FIXME also reverse the query string
-reverseUrl s eid args = runReverseM args =<< eid `Map.lookup` hReversers s
+reverseUrl :: NeptuneState -> EndpointId -> Vault -> Maybe (Domain, PathInfo)
+--FIXME also reverse the query string
+--FIXME also add a domain name
+reverseUrl s eid args = do
+    endpoint <- eid `Map.lookup` (nReversers s)
+    (m_domain, path) <- runReverseM args endpoint
+    let domain = fromMaybe (nDomain s) m_domain
+    return (domain, path)
 
 
 {- Below are instances for the result monad and monad transformer. -}
@@ -324,7 +334,7 @@ waiFromNeptune _ = error "waiFromNeptune: alternate responses" --STUB
 serveWai :: Neptune -> Wai.Application
 serveWai neptune = app --TODO make sure exceptions get turned into http500
     where
-    builtNeptune = buildNeptune neptune
+    builtNeptune = buildNeptune "localhost:8080" neptune
     app waiRequest respond = (respond =<<) . handleResult $ do
         let request = waiToNeptune waiRequest
             routingState = RS { rRequest = request
@@ -339,7 +349,7 @@ serveWai neptune = app --TODO make sure exceptions get turned into http500
         let handlingState = HS { hRequest = request
                                , hParams = vault
                                , hResponse = def
-                               , hReversers = nReversers builtNeptune
+                               , hNeptune = builtNeptune
                                }
         (pre_formats, state) <- runActionM handlingState action
         let formats = (\(mt, f) -> (mt, (mt, f))) <$> pre_formats

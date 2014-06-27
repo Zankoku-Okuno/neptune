@@ -18,6 +18,7 @@ module Web.Neptune.Route (
     , create
     , creates
     , getArg
+    , setDomain
     ) where
 
 import Data.List.Split (wordsBy)
@@ -31,7 +32,6 @@ import Web.Neptune.Core
 
 import Data.Monoid
 import Control.Monad.Reader
-import Control.Monad.Writer
 import Control.Monad.State
 
 {- These are for adding routes to a neptune. -}
@@ -41,9 +41,9 @@ endpoint eid (R fore back) m a = NeptuneM $ modify $ \s -> s
     , nReversers = softInsert eid back (nReversers s)
     }
 
-external :: EndpointId -> Reverse -> Neptune
-external eid back = NeptuneM $ modify $ \s -> s
-    { nReversers = softInsert eid back (nReversers s) }
+external :: EndpointId -> Domain -> Reverse -> Neptune
+external eid domain back = NeptuneM $ modify $ \s -> s
+    { nReversers = softInsert eid (back >> setDomain domain) (nReversers s) }
 
 include :: Route -> Neptune -> Neptune
 include (R fore back) neptune = NeptuneM $ modify $ \s -> s
@@ -53,7 +53,7 @@ include (R fore back) neptune = NeptuneM $ modify $ \s -> s
                          (Map.toList $ nReversers built)
     }
     where
-    built = buildNeptune neptune
+    built = buildNeptune undefined neptune
 
 cluster :: EndpointId -> Route -> [(Method, Action)] -> Neptune
 cluster eid (R fore back) actions = NeptuneM $ modify $ \s -> s
@@ -101,7 +101,7 @@ create :: Text -> Reverse
 create = creates . (:[])
 {-| Appends a path. -}
 creates :: [Text] -> Reverse
-creates = Reverse . lift . tell
+creates xs = Reverse . lift . modify $ \(dom, path) -> (dom, path ++ xs)
 
 {-| Retrives a parameter from the input. Fails if the key is not present. -}
 getArg :: Key a -> ReverseM a
@@ -143,3 +143,6 @@ captureIO (f, f') key = R fore back
         param <- fromMaybeM noMatch $ liftIO $ f segment
         setParam key param
     back = create =<< f' <$> getArg key
+
+setDomain :: Domain -> Reverse
+setDomain domain = Reverse $ modify $ \(_, path) -> (Just domain, path)

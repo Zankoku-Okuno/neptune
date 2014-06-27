@@ -21,7 +21,7 @@ instance RequestMonad FormatM where
 
 instance ReverseMonad FormatM where
     url eid args = do
-        s <- Format ask
+        s <- Format $ asks hNeptune
         case reverseUrl s eid args of
             Nothing -> raise $ NoUrlReverse eid args
             Just res -> return res
