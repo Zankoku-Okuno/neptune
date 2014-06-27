@@ -9,7 +9,7 @@ import Data.String (IsString(..))
 import Data.Default
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.Vault.Lazy (Vault)
+import Data.Vault.Lazy (Vault, Key)
 import qualified Data.Vault.Lazy as Vault
 import Data.ByteString.Lazy (ByteString)
 
@@ -37,19 +37,19 @@ type EndpointId = Text
 type PathInfo = [Text]
 type Method = Wai.Method
 type MediaType = Wai.MediaType
-type AcceptMedia = [Wai.Quality MediaType]
 type Language = Text --FIXME
-type AcceptLang = [Wai.Quality Language]
-type AppState = ByteString
 type Expiry = Integer --number of seconds into the future
+type AppState = ByteString
 type Attachment = Wai.FileInfo ByteString
+type AcceptMedia = [Wai.Quality MediaType]
+type AcceptLang = [Wai.Quality Language]
 
 data Request = Request
-    { url :: PathInfo
+    { location :: PathInfo
     , verb :: Method
     , acceptType :: AcceptMedia
     , acceptLang :: AcceptLang
-    , applicationState :: Map Text AppState
+    , appState :: Map Text AppState
     , parameters :: Map Text [ByteString]
     , attachments :: Map Text [Attachment]
     , reqBody :: ByteString
@@ -68,7 +68,9 @@ data Response = Response
               | BadMimetype   --(!use the Accept-Ranges response header!)
               | BadLanguage
               | NotAuthorized
+              | NoUrlReverse  EndpointId Vault
               | InternalError
+              --TODO? a Debug response
 
 instance Default Response where
     def = Response
@@ -116,8 +118,16 @@ for a variety of reasons using this monad.
 data Result a = Normal a
               | Alternate Response
 
-class ResultMonad m where
-    raise :: Result a -> m a
+class Monad m => ResultMonad m where
+    raise :: Response -> m a
+class Monad m => RequestMonad m where
+    request :: m Request
+    requests :: (Request -> a) -> m a
+    requests f = liftM f request
+class Monad m => ParamMonad m where
+    param :: Key a -> m (Maybe a)
+class Monad m => ReverseMonad m where
+    url :: EndpointId -> Vault -> m PathInfo
 
 
 {-
@@ -157,7 +167,7 @@ newtype ReverseM a = Reverse { unReverse :: ReaderT Vault (WriterT [Text] Maybe)
     deriving (Functor, Applicative, Monad)
 type Reverse = ReverseM ()
 runReverseM :: Vault
-            -> ReverseM a
+            -> Reverse
             -> Maybe [Text]
 runReverseM s = execWriterT . flip runReaderT s . unReverse
 
@@ -224,6 +234,9 @@ evalHandlers s (h:hs) = do
 negotiate :: Request -> [(MediaType, (MediaType, a))] -> Maybe (MediaType, a)
 negotiate request formats = Wai.mapAccept formats (acceptType request)
 
+reverseUrl :: HandlingState -> EndpointId -> Vault -> Maybe PathInfo --FIXME also reverse the query string
+reverseUrl s eid args = runReverseM args =<< eid `Map.lookup` hReversers s
+
 
 {- Below are instances for the result monad and monad transformer. -}
 instance Functor Result where
@@ -255,13 +268,13 @@ instance MonadIO m => MonadIO (ResultT m) where
     liftIO = lift . liftIO
 
 instance Monad m => ResultMonad (ResultT m) where
-    raise = ResultT . return
+    raise = ResultT . return . Alternate
 instance ResultMonad RouterM where
-    raise = Router . lift . lift .lift . ResultT . return
+    raise = Router . lift . lift .lift . ResultT . return . Alternate
 instance ResultMonad ActionM where
-    raise = Action . lift . ResultT . return
+    raise = Action . lift . ResultT . return . Alternate
 instance ResultMonad FormatM where
-    raise = Format . lift . ResultT . return
+    raise = Format . lift . ResultT . return . Alternate
 
 
 
@@ -279,7 +292,7 @@ instance ResultMonad FormatM where
 
 waiToNeptune :: Wai.Request -> Request
 waiToNeptune r = Request
-    { url = Wai.pathInfo r
+    { location = Wai.pathInfo r
     , verb = Wai.requestMethod r
     , acceptType = acceptType
     , acceptLang = error "toNeptune: get acceptLang" --STUB
@@ -308,38 +321,35 @@ waiFromNeptune r@(Response {}) = Wai.responseLBS Wai.status200 headers (body r) 
 waiFromNeptune _ = error "waiFromNeptune: alternate responses" --STUB
 
 
-neptuneApp :: Neptune -> Wai.Application
-neptuneApp neptune = app --TODO make sure exceptions get turned into http500
+serveWai :: Neptune -> Wai.Application
+serveWai neptune = app --TODO make sure exceptions get turned into http500
     where
     builtNeptune = buildNeptune neptune
     app waiRequest respond = (respond =<<) . handleResult $ do
         let request = waiToNeptune waiRequest
-        m_route <- runRoutesM $ evalHandlers (mkRoutingState request) (nHandlers builtNeptune)
+            routingState = RS { rRequest = request
+                              , rPath = location request
+                              , rParams = Wai.vault waiRequest
+                              }
+        m_route <- runRoutesM $ evalHandlers routingState (nHandlers builtNeptune)
         (vault, action) <- case m_route of
-            Left [] -> raise $ Alternate BadResource
-            Left allowed -> raise $ Alternate (BadMethod allowed)
+            Left [] -> raise BadResource
+            Left allowed -> raise $ BadMethod allowed
             Right route -> return route
-        (pre_formats, state) <- runActionM (mkHandlingState request vault) action
+        let handlingState = HS { hRequest = request
+                               , hParams = vault
+                               , hResponse = def
+                               , hReversers = nReversers builtNeptune
+                               }
+        (pre_formats, state) <- runActionM handlingState action
         let formats = (\(mt, f) -> (mt, (mt, f))) <$> pre_formats
-        (mimetype, format) <- maybe (raise $ Alternate BadMimetype) return $ negotiate request formats
+        (mimetype, format) <- maybe (raise BadMimetype) return $ negotiate request formats
         let state' = state { hResponse = (hResponse state) {mimetype = Just mimetype} }
         body <- runFormatM state' format
         return . waiFromNeptune $ (hResponse state') { body = body }
-
     handleResult :: ResultT IO Wai.Response -> IO Wai.Response
     handleResult x = runResultT x >>= \res -> case res of
         Normal x' -> return x'
         Alternate response -> return $ waiFromNeptune response
-    mkRoutingState :: Request -> RoutingState
-    mkRoutingState request = RS { rRequest = request
-                                , rPath = url request
-                                , rParams = Vault.empty
-                                }
-    mkHandlingState :: Request -> Vault -> HandlingState
-    mkHandlingState request vault = HS { hRequest = request
-                                       , hParams = vault
-                                       , hResponse = def
-                                       , hReversers = nReversers builtNeptune
-                                       }
 
 

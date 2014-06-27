@@ -1,19 +1,23 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Web.Neptune.Route (
       endpoint
+    , external
     , include
+    , cluster
     -- route combinators
     , zero
     , literal
     , capture
     -- low-level route matching combinators
     , consume
+    , ParamMonad(param)
     , setParam
     , noMatch
+    , RequestMonad(request, requests)
     -- low-level route reversing combinators
     , create
     , creates
-    , getParam
+    , getArg
     ) where
 
 import Data.List.Split (wordsBy)
@@ -37,6 +41,10 @@ endpoint eid (R fore back) m a = NeptuneM $ modify $ \s -> s
     , nReversers = softInsert eid back (nReversers s)
     }
 
+external :: EndpointId -> Reverse -> Neptune
+external eid back = NeptuneM $ modify $ \s -> s
+    { nReversers = softInsert eid back (nReversers s) }
+
 include :: Route -> Neptune -> Neptune
 include (R fore back) neptune = NeptuneM $ modify $ \s -> s
     { nHandlers = nHandlers s ++ [Include fore (nHandlers built)]
@@ -46,6 +54,14 @@ include (R fore back) neptune = NeptuneM $ modify $ \s -> s
     }
     where
     built = buildNeptune neptune
+
+cluster :: EndpointId -> Route -> [(Method, Action)] -> Neptune
+cluster eid (R fore back) actions = NeptuneM $ modify $ \s -> s
+    { nHandlers = nHandlers s ++ [Include fore $ map (uncurry mkHandler) actions]
+    , nReversers = softInsert eid back (nReversers s)
+    }
+    where
+    mkHandler = Endpoint (return ())
 
 
 {- Below is all about builting routes. -}
@@ -60,6 +76,11 @@ consume n = Router $ do
     modify $ \s -> s { rPath = suffix }
     return prefix
 
+instance ParamMonad RouterM where
+    param key = Router $ do
+        vault <- rParams <$> get
+        return $ key `Vault.lookup` vault
+
 {-| Adds a parameter to the result. -}
 setParam :: Key a -> a -> Router
 setParam key x = Router $ do
@@ -71,6 +92,9 @@ setParam key x = Router $ do
 noMatch :: RouterM a
 noMatch = Router $ lift nothing
 
+instance RequestMonad RouterM where
+    request = Router $ rRequest <$> get
+
 
 {-| Appends a path segment. -}
 create :: Text -> Reverse
@@ -80,8 +104,8 @@ creates :: [Text] -> Reverse
 creates = Reverse . lift . tell
 
 {-| Retrives a parameter from the input. Fails if the key is not present. -}
-getParam :: Key a -> ReverseM a
-getParam key = Reverse $ lift . lift . Vault.lookup key =<< ask
+getArg :: Key a -> ReverseM a
+getArg key = Reverse $ lift . lift . Vault.lookup key =<< ask
 
 
 {-| Routes can be added together piece-by-piece. -}
@@ -109,7 +133,7 @@ capture (f, f') key = R fore back
         [segment] <- consume 1
         param <- maybe noMatch return $ f segment
         setParam key param
-    back = create =<< f' <$> getParam key
+    back = create =<< f' <$> getArg key
 
 captureIO :: (Text -> IO (Maybe a), a -> Text) -> Key a -> Route
 captureIO (f, f') key = R fore back
@@ -118,4 +142,4 @@ captureIO (f, f') key = R fore back
         [segment] <- consume 1
         param <- fromMaybeM noMatch $ liftIO $ f segment
         setParam key param
-    back = create =<< f' <$> getParam key
+    back = create =<< f' <$> getArg key
