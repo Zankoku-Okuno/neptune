@@ -5,6 +5,7 @@ import Web.Neptune.Util
 
 
 import Data.String (IsString(..))
+import Data.Word8
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as LBS
 import qualified Data.Text as T
@@ -42,6 +43,7 @@ import qualified Web.Cookie as Wai
 type EndpointId = Text
 type Domain = Text
 type PathInfo = [Text]
+type Location = (Maybe Domain, PathInfo, Map Text ByteString)
 type Method = Wai.Method
 type MediaType = Wai.MediaType
 type Language = Text --FIXME
@@ -59,7 +61,7 @@ data Request = Request
     , appState :: Map Text AppState
     , parameters :: Map Text [ByteString]
     , attachments :: Map Text [Attachment]
-    , reqBody :: LByteString
+    , reqBody :: Maybe (MediaType, LByteString)
     }
 data Response = Response
     { mimetype :: Maybe MediaType
@@ -68,16 +70,17 @@ data Response = Response
     , updateAppState :: Map Text (Maybe (AppState, Maybe Expiry))
     , body :: LByteString --FIXME more options for things to return
     }
-              | EmptyResponse Response Text --the Text is like an error code
-              | Redirect      PathInfo Bool --the Bool means it is permanent
-              | BadResource
-              | BadMethod     [Method]
-              | BadMimetype   --(!use the Accept-Ranges response header!)
-              | BadLanguage
-              | NotAuthorized
-              | NoUrlReverse  EndpointId Vault
-              | Timeout
-              | InternalError
+              | EmptyResponse  Response Text --the Text is like an error code
+              | Redirect       Location Bool --the Bool means it is permanent
+              | BadReqMimetype [MediaType] -- the types the app can consume
+              | BadResource    
+              | BadMethod      [Method]
+              | BadMimetype    [MediaType] -- the types the app can produce
+              | BadLanguage    
+              | NotAuthorized  
+              | NoUrlReverse   EndpointId Vault
+              | Timeout        
+              | InternalError  
               --TODO? a Debug response
 
 instance Default Response where
@@ -138,7 +141,7 @@ class Monad m => RequestMonad m where
 class Monad m => ParamMonad m where
     param :: Key a -> m (Maybe a)
 class Monad m => ReverseMonad m where
-    url :: EndpointId -> Vault -> m (Domain, PathInfo)
+    url :: EndpointId -> Vault -> [(Text, ByteString)] -> m Location
 
 
 {-
@@ -245,14 +248,12 @@ evalHandlers s (h:hs) = do
 negotiate :: Request -> [(MediaType, (MediaType, a))] -> Maybe (MediaType, a)
 negotiate request formats = Wai.mapAccept formats (acceptType request)
 
-reverseUrl :: NeptuneState -> EndpointId -> Vault -> Maybe (Domain, PathInfo)
+reverseUrl :: NeptuneState -> EndpointId -> Vault -> [(Text, ByteString)] -> Maybe Location
 --FIXME also reverse the query string
---FIXME also add a domain name
-reverseUrl s eid args = do
+reverseUrl s eid args query = do
     endpoint <- eid `Map.lookup` (nReversers s)
-    (m_domain, path) <- runReverseM args endpoint
-    let domain = fromMaybe (nDomain s) m_domain
-    return (domain, path)
+    (domain, path) <- runReverseM args endpoint
+    return (domain, path, Map.fromList query)
 
 
 {- Below are instances for the result monad and monad transformer. -}
@@ -307,17 +308,19 @@ instance ResultMonad FormatM where
 
 
 
-waiToNeptune :: Wai.Request -> Request
-waiToNeptune r = Request
-    { location = Wai.pathInfo r
-    , verb = Wai.requestMethod r
-    , acceptType = acceptType
-    , acceptLang = error "toNeptune: get acceptLang" --STUB
-    , appState = appState
-    , parameters = error "toNeptune: get parameters" --STUB
-    , attachments = error "toNeptune: get attachments" --STUB
-    , reqBody = error "toNeptune: get reqBody" --STUB
-    }
+waiToNeptune :: Wai.Request -> IO Request
+waiToNeptune r = do
+    (raw_params, raw_files, reqBody) <- parseBody
+    return $ Request
+        { location = Wai.pathInfo r
+        , verb = Wai.requestMethod r
+        , acceptType = acceptType
+        , acceptLang = error "toNeptune: get acceptLang" --STUB
+        , appState = appState
+        , parameters = mkMap raw_params
+        , attachments = mkMap raw_files
+        , reqBody = reqBody
+        }
     where
     headers = Wai.requestHeaders r
     acceptType = let accept = fromMaybe "*/*" $ "Accept" `lookup` headers
@@ -325,6 +328,25 @@ waiToNeptune r = Request
     appState = let cookies = maybe [] Wai.parseCookies $ "Cookie" `lookup` headers
                in foldl cookieMap Map.empty cookies
         where cookieMap acc (name, value) = Map.insert (decodeUrl name) value acc
+    parseBody = case Wai.getRequestBodyType r of
+        Nothing -> do
+            let mime = fromMaybe "application/octet-stream" $ do
+                it <- "Content-Type" `lookup` headers
+                case BS.split _slash . BS.takeWhile (/= _semicolon) $ it of
+                    [major,minor] -> Just $ major Wai.// minor
+                    _ -> Nothing
+            body <- Wai.lazyRequestBody r
+            return ([], [], Just (mime, body))
+        Just _ -> do
+            (params, files) <- Wai.parseRequestBody Wai.lbsBackEnd r
+            return (params, files, Nothing)
+    mkMap = foldr addParam Map.empty
+        where
+        addParam (bsName, value) acc =
+            let name = decodeUrl bsName
+            in if name `Map.member` acc
+                then Map.adjust (value:) name acc
+                else Map.insert name [value] acc
 waiFromNeptune :: Response -> Wai.Response
 waiFromNeptune r@(Response {}) = Wai.responseLBS Wai.status200 headers (body r) --FIXME add headers
     where
@@ -353,8 +375,8 @@ serveWai neptune = app --TODO make sure exceptions get turned into http500
     where
     builtNeptune = buildNeptune "localhost:8080" neptune
     app waiRequest respond = (respond =<<) . handleResult $ do
-        let request = waiToNeptune waiRequest
-            routingState = RS { rRequest = request
+        request <- liftIO $ waiToNeptune waiRequest
+        let routingState = RS { rRequest = request
                               , rPath = location request
                               , rParams = Wai.vault waiRequest
                               }
@@ -370,7 +392,8 @@ serveWai neptune = app --TODO make sure exceptions get turned into http500
                                }
         (pre_formats, state) <- runActionM handlingState action
         let formats = (\(mt, f) -> (mt, (mt, f))) <$> pre_formats
-        (mimetype, format) <- maybe (raise BadMimetype) return $ negotiate request formats
+            acceptable = fst <$> formats
+        (mimetype, format) <- maybe (raise $ BadMimetype acceptable) return $ negotiate request formats
         let state' = state { hResponse = (hResponse state) {mimetype = Just mimetype} }
         body <- runFormatM state' format
         return . waiFromNeptune $ (hResponse state') { body = body }
