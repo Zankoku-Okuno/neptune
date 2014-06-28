@@ -30,4 +30,4 @@ library
                        Web.Neptune.Action,
                        Web.Neptune.Format
   -- other-modules:       
-  build-depends:       base ==4.6.*, wai ==3.*, mtl ==2.1.*, http-types ==0.8.*, text ==0.11.*, vault ==0.3.*, MaybeT ==0.1.*, http-media ==0.1.*, split ==0.2.*, containers == 0.5.*, bytestring ==0.10.*, data-default ==0.5.*, time ==1.4.*, wai-extra ==3.0.*
+  build-depends:       base ==4.6.*, wai ==3.*, mtl ==2.1.*, http-types ==0.8.*, text ==0.11.*, vault ==0.3.*, MaybeT ==0.1.*, http-media ==0.1.*, split ==0.2.*, containers == 0.5.*, bytestring ==0.10.*, data-default ==0.5.*, time ==1.4.*, wai-extra ==3.0.*, word8 ==0.0.4, cookie ==0.4.*

@@ -12,7 +12,7 @@ The more I work with web applications, the more I notice that the current web fr
 [*] Routing based on URL and verb.
 [*] Content negotiation.
 [ ] Internationalization.
-[ ] Update application state.
+[*] Update application state.
 [*] Network caching interface.
 [*] URL reversing.
 

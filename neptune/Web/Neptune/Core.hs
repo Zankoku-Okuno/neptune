@@ -3,15 +3,20 @@ module Web.Neptune.Core where
 
 import Web.Neptune.Util
 
-import Data.Time.Clock
 
 import Data.String (IsString(..))
+import qualified Data.ByteString as BS
+import qualified Data.ByteString.Lazy as LBS
+import qualified Data.Text as T
+import qualified Data.Text.Lazy as LT
+
+import Data.Time.Clock
+
 import Data.Default
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Vault.Lazy (Vault, Key)
 import qualified Data.Vault.Lazy as Vault
-import Data.ByteString.Lazy (ByteString)
 
 import Control.Monad.Identity
 import Control.Monad.Maybe
@@ -23,6 +28,7 @@ import qualified Network.Wai as Wai
 import qualified Network.Wai.Parse as Wai
 import qualified Network.HTTP.Types as Wai
 import qualified Network.HTTP.Media as Wai
+import qualified Web.Cookie as Wai
 
 
 
@@ -41,7 +47,7 @@ type MediaType = Wai.MediaType
 type Language = Text --FIXME
 type Expiry = Integer --number of seconds into the future
 type AppState = ByteString
-type Attachment = Wai.FileInfo ByteString
+type Attachment = Wai.FileInfo LByteString
 type AcceptMedia = [Wai.Quality MediaType]
 type AcceptLang = [Wai.Quality Language]
 
@@ -53,14 +59,14 @@ data Request = Request
     , appState :: Map Text AppState
     , parameters :: Map Text [ByteString]
     , attachments :: Map Text [Attachment]
-    , reqBody :: ByteString
+    , reqBody :: LByteString
     }
 data Response = Response
     { mimetype :: Maybe MediaType
     , language :: Maybe Language
     , cacheFor :: Maybe Expiry
     , updateAppState :: Map Text (Maybe (AppState, Maybe Expiry))
-    , body :: ByteString --FIXME more options for things to return
+    , body :: LByteString --FIXME more options for things to return
     }
               | EmptyResponse Response Text --the Text is like an error code
               | Redirect      PathInfo Bool --the Bool means it is permanent
@@ -70,6 +76,7 @@ data Response = Response
               | BadLanguage
               | NotAuthorized
               | NoUrlReverse  EndpointId Vault
+              | Timeout
               | InternalError
               --TODO? a Debug response
 
@@ -201,7 +208,7 @@ runActionM s = flip runStateT s . unAction
 
 newtype FormatM a = Format { unFormat :: ReaderT HandlingState (ResultT IO) a }
     deriving (Functor, Applicative, Monad, MonadIO)
-type Format = FormatM ByteString
+type Format = FormatM LByteString
 runFormatM :: HandlingState
            -> FormatM a
            -> ResultT IO a
@@ -306,7 +313,7 @@ waiToNeptune r = Request
     , verb = Wai.requestMethod r
     , acceptType = acceptType
     , acceptLang = error "toNeptune: get acceptLang" --STUB
-    , appState = error "toNeptune: get appState" --STUB
+    , appState = appState
     , parameters = error "toNeptune: get parameters" --STUB
     , attachments = error "toNeptune: get attachments" --STUB
     , reqBody = error "toNeptune: get reqBody" --STUB
@@ -315,6 +322,9 @@ waiToNeptune r = Request
     headers = Wai.requestHeaders r
     acceptType = let accept = fromMaybe "*/*" $ "Accept" `lookup` headers
                  in fromMaybe [] $ Wai.parseAccept accept
+    appState = let cookies = maybe [] Wai.parseCookies $ "Cookie" `lookup` headers
+               in foldl cookieMap Map.empty cookies
+        where cookieMap acc (name, value) = Map.insert (decodeUrl name) value acc
 waiFromNeptune :: Response -> Wai.Response
 waiFromNeptune r@(Response {}) = Wai.responseLBS Wai.status200 headers (body r) --FIXME add headers
     where
@@ -327,7 +337,14 @@ waiFromNeptune r@(Response {}) = Wai.responseLBS Wai.status200 headers (body r) 
         Nothing -> [ ("Cache-Control", "private, max-age=0, no-cache, no-store")]
         Just dt -> [ ("Cache-Control", "no-transform, public, max-age=" <> (fromString . show) dt)
                    , ("Vary", "Accept,Accept-Language,Accept-Encoding") ] --TODO check that this is all varying needed
-    cookies = [] --STUB
+    cookies = (\(k, v) -> ("Set-Cookie", mkCookie (encodeUrl [61] k) v)) <$> Map.toList (updateAppState r)
+        where
+        mkCookie name Nothing =
+            name <> "=; Max-Age=0"
+        mkCookie name (Just (value, Nothing)) =
+            name <> "=" <> value
+        mkCookie name (Just (value, Just maxage)) =
+            name <> "=" <> value <> "; Max-Age=" <> fromString (show maxage)
 waiFromNeptune _ = error "waiFromNeptune: alternate responses" --STUB
 
 
