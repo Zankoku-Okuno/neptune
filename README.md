@@ -8,13 +8,13 @@ Motivation
 
 The more I work with web applications, the more I notice that the current web frameworks just don't cut it. Their modules are tightly coupled, or their syntax is verbose and/or unusual, or their utilities are too general to be applicable, or they fail to deliver on sweeping promises, and all of them fail to respect REST constraints at some point.
 
-    - [x] Protocol-independent.
-    - [x] Routing based on URL and verb.
-    - [x] Content negotiation.
-    - [ ] Internationalization.
-    - [x] Update application state.
-    - [x] Network caching interface.
-    - [x] URL reversing.
+- [x] Protocol-independent.
+- [x] Routing based on URL and verb.
+- [x] Content negotiation.
+- [ ] Internationalization.
+- [x] Update application state.
+- [x] Network caching interface.
+- [x] URL reversing.
 
 We can't do much to help you satisfy the hypermedia constraint in your application, or use code-on-demand. Those pieces of REST are media type dependent, and we've chosen not to tie the application developer to any set of media types. Nevertheless, URL reversing and perhaps a few tools should go a long way towards eliminating the "it's too hard" excuse.
 
