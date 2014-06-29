@@ -72,7 +72,8 @@ waiToNeptune r = do
 
 
 waiFromNeptune :: ErrorHandlers -> AcceptMedia -> Response -> Wai.Response
-waiFromNeptune _ _ r@(Response {}) = Wai.responseLBS Wai.status200 headers (body r)
+waiFromNeptune _ _ r@(Response {}) = case body r of
+        LBSResponse body -> Wai.responseLBS Wai.status200 headers body
     where
     headers = mimeHeader ++ langHeader ++ cacheHeader ++ cookies
     mimeHeader = case mimetype r of

@@ -3,6 +3,7 @@ module Web.Neptune.Types (
     -- * Requests and Responses
       Request(..)
     , Response(..)
+    , ResponseBody(..)
     , Application
     , Middleware
     -- * Basic Types
@@ -106,7 +107,7 @@ data Response = Response
     , language :: Maybe Language
     , cacheFor :: Maybe Expiry
     , updateAppState :: Map Text (Maybe (AppState, Maybe Expiry))
-    , body :: LByteString --FIXME more options for things to return
+    , body :: ResponseBody
     }
               | EmptyResponse  Response Text --the Text is like an error code
               | Redirect       Location Bool --the Bool means it is permanent
@@ -120,6 +121,13 @@ data Response = Response
               | InternalError  
               | NoUrlReverse   EndpointId Vault
               --TODO? a Debug response
+
+data ResponseBody = LBSResponse LByteString
+                  | BuilderResponse Builder
+                  | FileResponse FilePath
+
+instance IsString ResponseBody where
+    fromString = LBSResponse . fromString
 
 instance Default Response where
     def = Response

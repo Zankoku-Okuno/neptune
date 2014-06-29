@@ -272,7 +272,7 @@ runActionM s = flip runStateT s . unAction
 
 {-| The 'FormatM' monad is primarily concerned with producing a 'Response' 'body',
     so this type will come up often. -}
-type Format = FormatM LByteString
+type Format = FormatM ResponseBody
 
 {-| The 'FormatM' monad only has read access to the 'HandlingState'.
 

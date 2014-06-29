@@ -46,6 +46,7 @@ library
                        word8 ==0.0.4,
                        text ==0.11.*,
                        bytestring ==0.10.*,
+                       blaze-builder ==0.3.*,
                        split ==0.2.*,
                        time ==1.4.*,
                        containers == 0.5.*,

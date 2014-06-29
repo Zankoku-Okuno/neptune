@@ -8,6 +8,7 @@ module Web.Neptune.Util (
     , module Control.Applicative
     , module Control.Monad
     -- * String Processing
+    , Builder
     , ByteString
     , Text
     , LByteString
@@ -33,6 +34,7 @@ import Data.Map (Map)
 import Data.Vault.Lazy (Vault, Key)
 import qualified Data.Map as M
 
+import Blaze.ByteString.Builder (Builder)
 import Data.Text (Text)
 import Data.ByteString (ByteString)
 import qualified Data.Text.Lazy as LT
