@@ -14,6 +14,7 @@ module Web.Neptune.Route (
     , setVault
     , noMatch
     , RequestMonad(request, requests)
+    , ConfigMonad(config)
     -- low-level route reversing combinators
     , create
     , creates
@@ -45,14 +46,14 @@ external eid domain back = Neptune $ modify $ \s -> s
     { nReversers = softInsert eid (back >> setDomain domain) (nReversers s) }
 
 include :: Route -> Neptune -> Neptune
-include (R fore back) neptune = Neptune $ modify $ \s -> s
-    { nHandlers = nHandlers s ++ [Include fore (nHandlers built)]
-    , nReversers = foldr (\(eid, back') -> softInsert eid (back >> back'))
-                         (nReversers s)
-                         (Map.toList $ nReversers built)
-    }
-    where
-    built = buildNeptune undefined neptune
+include (R fore back) neptune = Neptune $ do
+    built <- flip buildSubNeptune neptune . nConfig <$> get
+    modify $ \s -> s
+        { nHandlers = nHandlers s ++ [Include fore (nHandlers built)]
+        , nReversers = foldr (\(eid, back') -> softInsert eid (back >> back'))
+                             (nReversers s)
+                             (Map.toList $ nReversers built)
+        }
 
 cluster :: EndpointId -> Route -> [(Verb, Action)] -> Neptune
 cluster eid (R fore back) actions = Neptune $ modify $ \s -> s
@@ -92,7 +93,10 @@ noMatch :: RouterM a
 noMatch = Router $ lift nothing
 
 instance RequestMonad RouterM where
-    request = Router $ rRequest <$> get
+    request = rRequest <$> Router get
+
+instance ConfigMonad RouterM where
+    config key = Vault.lookup key . nConfig . rNeptune <$> Router get
 
 
 {-| Appends a path segment. -}
@@ -104,7 +108,7 @@ creates xs = Reverse . lift . modify $ \(dom, path) -> (dom, path ++ xs)
 
 {-| Retrives a parameter from the input. Fails if the key is not present. -}
 getArg :: Key a -> ReverseM a
-getArg key = Reverse $ lift . lift . Vault.lookup key =<< ask
+getArg key = Reverse $ lift . lift . Vault.lookup key . fst =<< ask
 
 
 {-| Routes can be added together piece-by-piece. -}
@@ -145,3 +149,6 @@ captureIO (f, f') key = R fore back
 
 setDomain :: Domain -> Reverse
 setDomain domain = Reverse $ modify $ \(_, path) -> (Just domain, path)
+
+instance ConfigMonad ReverseM where
+    config key = Reverse $ asks (Vault.lookup key . nConfig . snd)

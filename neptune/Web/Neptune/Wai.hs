@@ -132,10 +132,10 @@ negotiateError empty accept headers formats =
         Just (ct, body) -> (("Content-Type", (fromString . show) ct) : headers, body)
 
 
-serveWai :: Neptune -> Wai.Application
-serveWai neptune = app --FIXME make sure exceptions get turned into http500
+serveWai :: Vault -> Neptune -> Wai.Application
+serveWai config neptune = app --FIXME make sure exceptions get turned into http500
     where
-    builtNeptune = buildNeptune "localhost:8080" neptune
+    builtNeptune = buildNeptune "localhost:8080" config neptune
     app waiRequest respond = do
         request <- waiToNeptune waiRequest
         let toWai = waiFromNeptune (nErrorHandlers builtNeptune) (acceptType request)
@@ -143,6 +143,7 @@ serveWai neptune = app --FIXME make sure exceptions get turned into http500
             let routingState = RS { rRequest = request
                                   , rPath = resource request
                                   , rVault = Wai.vault waiRequest
+                                  , rNeptune = builtNeptune
                                   }
             m_route <- runRoutesM $ evalHandlers routingState (nHandlers builtNeptune)
             (vault, action) <- case m_route of

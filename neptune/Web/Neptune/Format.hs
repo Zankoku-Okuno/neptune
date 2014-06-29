@@ -2,6 +2,7 @@ module Web.Neptune.Format (
       VaultMonad(vault)
     , RequestMonad(request, requests)
     , ReverseMonad(url)
+    , ConfigMonad(config)
     ) where
 
 import Web.Neptune.Util
@@ -17,6 +18,9 @@ instance VaultMonad FormatM where
 
 instance RequestMonad FormatM where
     request = Format $ asks hRequest
+
+instance ConfigMonad FormatM where
+    config key = Format $ asks $ Vault.lookup key . nConfig . hNeptune
 
 instance ReverseMonad FormatM where
     url eid args query = do

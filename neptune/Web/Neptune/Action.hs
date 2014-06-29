@@ -2,6 +2,7 @@ module Web.Neptune.Action (
       VaultMonad(vault)
     , RequestMonad(request, requests)
     , ReverseMonad(url)
+    , ConfigMonad(config)
     ) where
 
 import Web.Neptune.Util
@@ -17,6 +18,9 @@ instance VaultMonad ActionM where
 
 instance RequestMonad ActionM where
     request = hRequest <$> Action get
+
+instance ConfigMonad ActionM where
+    config key = Vault.lookup key . nConfig . hNeptune <$> Action get
 
 instance ReverseMonad ActionM where
     url eid args query = do

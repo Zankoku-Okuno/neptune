@@ -5,6 +5,7 @@ module Web.Neptune.Core (
     , Neptune
     , NeptuneM(..)
     , buildNeptune
+    , buildSubNeptune
     , NeptuneState(..)
     , ErrorHandlers(..)
     -- * Result Monad
@@ -38,6 +39,7 @@ module Web.Neptune.Core (
     , RequestMonad(..)
     , VaultMonad(..)
     , ReverseMonad(..)
+    , ConfigMonad(..)
     -- * Dispatch Processes
     , evalHandler
     , evalHandlers
@@ -82,23 +84,29 @@ newtype NeptuneM a = Neptune { unNeptune :: State NeptuneState a }
     deriving (Functor, Applicative, Monad)
 
 {-| Data structure for configuring an application. -}
-data NeptuneState = NS { nHandlers :: [Handler]
+data NeptuneState = NS { nDomain :: Domain
+                       , nHandlers :: [Handler]
                        , nReversers :: Map EndpointId Reverse
-                       , nDomain :: Domain
                        , nErrorHandlers :: ErrorHandlers
+                       , nConfig :: Vault
                        }
 
 {-| \"Compile\" the Neptune monad down to a simple configuration. -}
 buildNeptune :: Domain -- ^ domain name to run under (honestly, just a URL prefix)
+             -> Vault -- ^ additional configuration
              -> Neptune -- ^ configure the application
              -> NeptuneState -- ^ this is then used to serve any number of requests
-buildNeptune domain = flip execState zero . unNeptune 
+buildNeptune domain config = flip execState zero . unNeptune 
     where
-    zero = NS { nHandlers = []
+    zero = NS { nDomain = domain
+              , nHandlers = []
               , nReversers = Map.empty
-              , nDomain = domain
               , nErrorHandlers = def
+              , nConfig = config
               }
+
+buildSubNeptune :: Vault -> Neptune -> NeptuneState
+buildSubNeptune config = buildNeptune undefined config
 
 
 {-| Request handling can make it through the pipeline smoothly, or it might exit the
@@ -210,6 +218,7 @@ runRoutesM action = do
 data RoutingState = RS { rPath :: PathInfo
                        , rVault :: Vault
                        , rRequest :: Request
+                       , rNeptune :: NeptuneState
                        }
 
 {-| Since reversing a route is mainly a accumulation, this type will come up often. -}
@@ -218,15 +227,16 @@ type Reverse = ReverseM ()
 {-| Reversing a route accumulates a a URL while reading from a store of parameters,
     but it may fail, particularly when necesary parameters are missing.
 -}
-newtype ReverseM a = Reverse { unReverse :: ReaderT Vault (StateT (Maybe Domain, PathInfo) Maybe) a}
+newtype ReverseM a = Reverse { unReverse :: ReaderT ReverseState (StateT (Maybe Domain, PathInfo) Maybe) a}
     deriving (Functor, Applicative, Monad)
 
 {-| Perform a URL reversal. -}
-runReverseM :: Vault
+runReverseM :: ReverseState
             -> Reverse
             -> Maybe (Maybe Domain, PathInfo)
 runReverseM s = flip execStateT (Nothing, []) . flip runReaderT s . unReverse
 
+type ReverseState = (Vault, NeptuneState)
 
 {-| A handler can be a single endpoint or a \"sub-application\",
     which is number of endpoints all sharing a path prefix.
@@ -333,6 +343,11 @@ class Monad m => VaultMonad m where
 {-| Any monad in which URLs may be reversed. -}
 class Monad m => ReverseMonad m where
     url :: EndpointId -> Vault -> [(Text, ByteString)] -> m Location
+class Monad m => ConfigMonad m where
+    config :: Key a -> m (Maybe a)
+
+instance ConfigMonad NeptuneM where
+    config key = Vault.lookup key . nConfig <$> Neptune get
 
 
 {-| Attempt to route through a single handler
@@ -375,7 +390,7 @@ reverseUrl :: NeptuneState -> EndpointId -> Vault -> [(Text, ByteString)] -> May
 --FIXME also reverse the query string
 reverseUrl s eid args query = do
     endpoint <- eid `Map.lookup` (nReversers s)
-    (m_domain, path) <- runReverseM args endpoint
+    (m_domain, path) <- runReverseM (args, s) endpoint
     let domain = fromMaybe (nDomain s) m_domain
     return (domain, path, Map.fromList query)
 
