@@ -7,7 +7,6 @@ module Web.Neptune.Format (
 import Web.Neptune.Util
 import Web.Neptune.Core
 
-import Data.Vault.Lazy (Vault, Key)
 import qualified Data.Vault.Lazy as Vault
 import Control.Monad.Reader
 

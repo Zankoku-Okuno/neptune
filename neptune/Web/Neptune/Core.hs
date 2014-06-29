@@ -3,20 +3,12 @@ module Web.Neptune.Core where
 
 import Web.Neptune.Util
 
-
-import Data.String (IsString(..))
-import Data.Word8
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as LBS
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as LT
 
-import Data.Time.Clock
-
-import Data.Default
-import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.Vault.Lazy (Vault, Key)
 import qualified Data.Vault.Lazy as Vault
 
 import Control.Monad.Identity
@@ -44,7 +36,7 @@ type EndpointId = Text
 type Domain = Text
 type PathInfo = [Text]
 type Location = (Maybe Domain, PathInfo, Map Text ByteString)
-type Method = Wai.Method
+type Method = ByteString
 type MediaType = Wai.MediaType
 type Language = Text --FIXME
 type Expiry = Integer --number of seconds into the future
@@ -70,16 +62,16 @@ data Response = Response
     , updateAppState :: Map Text (Maybe (AppState, Maybe Expiry))
     , body :: LByteString --FIXME more options for things to return
     }
-              | EmptyResponse  Response Text --the Text is like an error code
-              | Redirect       Location Bool --the Bool means it is permanent
-              | BadReqMimetype [MediaType] -- the types the app can consume
+              | EmptyResponse Response Text --the Text is like an error code
+              | Redirect      Location Bool --the Bool means it is permanent
+              | BadContent    [MediaType] -- the types the app can consume
               | BadResource    
-              | BadMethod      [Method]
-              | BadMimetype    [MediaType] -- the types the app can produce
+              | BadMethod     [Method]
+              | BadAccept     [MediaType] -- the types the app can produce
               | BadLanguage    
               | NotAuthorized  
-              | NoUrlReverse   EndpointId Vault
-              | Timeout        
+              | NoUrlReverse  EndpointId Vault
+              | Timeout        --TODO time taken
               | InternalError  
               --TODO? a Debug response
 
@@ -103,11 +95,12 @@ The neptune monad is responsible for accumulating routes.
 The result of building a neptune can handle many requests.
 Essentially, it is a configuration monad, and so has no appreciable dynamics.
 -}
-newtype NeptuneM a = NeptuneM { unNeptune :: State NeptuneState a }
+newtype NeptuneM a = Neptune { unNeptune :: State NeptuneState a }
     deriving (Functor, Applicative, Monad)
 data NeptuneState = NS { nHandlers :: [Handler]
                        , nReversers :: Map EndpointId Reverse
                        , nDomain :: Domain
+                       , nErrorHandlers :: ErrorHandlers
                        } --TODO error formatters
 type Neptune = NeptuneM ()
 buildNeptune :: Domain
@@ -118,6 +111,7 @@ buildNeptune domain = flip execState zero . unNeptune
     zero = NS { nHandlers = []
               , nReversers = Map.empty
               , nDomain = domain
+              , nErrorHandlers = def
               }
 
 
@@ -218,6 +212,31 @@ runFormatM :: HandlingState
 runFormatM s = flip runReaderT s . unFormat
 
 
+data ErrorHandlers = EHs
+    { ehBadContent :: [(MediaType, [MediaType] -> Format)]
+    , ehBadResource :: [(MediaType, Format)]
+    , ehBadMethod :: [(MediaType, [Method] -> Format)]
+    , ehBadAccept :: [(MediaType, [MediaType] -> Format)]
+    , ehBadLanguage :: [(MediaType, Format)]
+    , ehNotAuthorized :: [(MediaType, Format)]
+    , ehNoUrlReverse :: [(MediaType, EndpointId -> Vault -> Format)]
+    , ehTimeout :: [(MediaType, Format)]
+    , ehInternalError :: [(MediaType, Format)]
+    }
+instance Default ErrorHandlers where
+    def = EHs
+        { ehBadContent = []
+        , ehBadResource = []
+        , ehBadMethod = []
+        , ehBadAccept = []
+        , ehBadLanguage = []
+        , ehNotAuthorized = []
+        , ehNoUrlReverse = []
+        , ehTimeout = []
+        , ehInternalError = []
+        }
+
+
 {- These functions are here to help dispatch processes. -}
 evalHandler :: RoutingState
             -> Handler
@@ -245,8 +264,10 @@ evalHandlers s (h:hs) = do
         Nothing -> evalHandlers s hs
         Just result -> return $ Just result
 
-negotiate :: Request -> [(MediaType, (MediaType, a))] -> Maybe (MediaType, a)
-negotiate request formats = Wai.mapAccept formats (acceptType request)
+negotiate :: AcceptMedia -> [(MediaType, a)] -> Maybe (MediaType, a)
+negotiate accept formats = Wai.mapAccept (map f formats) accept
+    where
+    f (a, b) = (a, (a, b))
 
 reverseUrl :: NeptuneState -> EndpointId -> Vault -> [(Text, ByteString)] -> Maybe Location
 --FIXME also reverse the query string
@@ -293,113 +314,4 @@ instance ResultMonad ActionM where
     raise = Action . lift . ResultT . return . Alternate
 instance ResultMonad FormatM where
     raise = Format . lift . ResultT . return . Alternate
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-waiToNeptune :: Wai.Request -> IO Request
-waiToNeptune r = do
-    (raw_params, raw_files, reqBody) <- parseBody
-    return $ Request
-        { location = Wai.pathInfo r
-        , verb = Wai.requestMethod r
-        , acceptType = acceptType
-        , acceptLang = error "toNeptune: get acceptLang" --STUB
-        , appState = appState
-        , parameters = mkMap raw_params
-        , attachments = mkMap raw_files
-        , reqBody = reqBody
-        }
-    where
-    headers = Wai.requestHeaders r
-    acceptType = let accept = fromMaybe "*/*" $ "Accept" `lookup` headers
-                 in fromMaybe [] $ Wai.parseAccept accept
-    appState = let cookies = maybe [] Wai.parseCookies $ "Cookie" `lookup` headers
-               in foldl cookieMap Map.empty cookies
-        where cookieMap acc (name, value) = Map.insert (decodeUrl name) value acc
-    parseBody = case Wai.getRequestBodyType r of
-        Nothing -> do
-            let mime = fromMaybe "application/octet-stream" $ do
-                it <- "Content-Type" `lookup` headers
-                case BS.split _slash . BS.takeWhile (/= _semicolon) $ it of
-                    [major,minor] -> Just $ major Wai.// minor
-                    _ -> Nothing
-            body <- Wai.lazyRequestBody r
-            return ([], [], Just (mime, body))
-        Just _ -> do
-            (params, files) <- Wai.parseRequestBody Wai.lbsBackEnd r
-            return (params, files, Nothing)
-    mkMap = foldr addParam Map.empty
-        where
-        addParam (bsName, value) acc =
-            let name = decodeUrl bsName
-            in if name `Map.member` acc
-                then Map.adjust (value:) name acc
-                else Map.insert name [value] acc
-waiFromNeptune :: Response -> Wai.Response
-waiFromNeptune r@(Response {}) = Wai.responseLBS Wai.status200 headers (body r) --FIXME add headers
-    where
-    headers = mimeHeader ++ langHeader ++ cacheHeader ++ cookies
-    mimeHeader = case mimetype r of
-        Nothing -> []
-        Just mt -> [("Content-Type", fromString . show $ mt)]
-    langHeader = [] --STUB
-    cacheHeader = case cacheFor r of
-        Nothing -> [ ("Cache-Control", "private, max-age=0, no-cache, no-store")]
-        Just dt -> [ ("Cache-Control", "no-transform, public, max-age=" <> (fromString . show) dt)
-                   , ("Vary", "Accept,Accept-Language,Accept-Encoding") ] --TODO check that this is all varying needed
-    cookies = (\(k, v) -> ("Set-Cookie", mkCookie (encodeUrl [61] k) v)) <$> Map.toList (updateAppState r)
-        where
-        mkCookie name Nothing =
-            name <> "=; Max-Age=0"
-        mkCookie name (Just (value, Nothing)) =
-            name <> "=" <> value
-        mkCookie name (Just (value, Just maxage)) =
-            name <> "=" <> value <> "; Max-Age=" <> fromString (show maxage)
-waiFromNeptune _ = error "waiFromNeptune: alternate responses" --STUB
-
-
-serveWai :: Neptune -> Wai.Application
-serveWai neptune = app --TODO make sure exceptions get turned into http500
-    where
-    builtNeptune = buildNeptune "localhost:8080" neptune
-    app waiRequest respond = (respond =<<) . handleResult $ do
-        request <- liftIO $ waiToNeptune waiRequest
-        let routingState = RS { rRequest = request
-                              , rPath = location request
-                              , rParams = Wai.vault waiRequest
-                              }
-        m_route <- runRoutesM $ evalHandlers routingState (nHandlers builtNeptune)
-        (vault, action) <- case m_route of
-            Left [] -> raise BadResource
-            Left allowed -> raise $ BadMethod allowed
-            Right route -> return route
-        let handlingState = HS { hRequest = request
-                               , hParams = vault
-                               , hResponse = def
-                               , hNeptune = builtNeptune
-                               }
-        (pre_formats, state) <- runActionM handlingState action
-        let formats = (\(mt, f) -> (mt, (mt, f))) <$> pre_formats
-            acceptable = fst <$> formats
-        (mimetype, format) <- maybe (raise $ BadMimetype acceptable) return $ negotiate request formats
-        let state' = state { hResponse = (hResponse state) {mimetype = Just mimetype} }
-        body <- runFormatM state' format
-        return . waiFromNeptune $ (hResponse state') { body = body }
-    handleResult :: ResultT IO Wai.Response -> IO Wai.Response
-    handleResult x = runResultT x >>= \res -> case res of
-        Normal x' -> return x'
-        Alternate response -> return $ waiFromNeptune response
-
 

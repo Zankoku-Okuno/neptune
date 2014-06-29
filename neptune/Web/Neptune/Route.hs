@@ -21,14 +21,13 @@ module Web.Neptune.Route (
     , setDomain
     ) where
 
+import Web.Neptune.Util
+import Web.Neptune.Core
+
 import Data.List.Split (wordsBy)
-import Data.Vault.Lazy (Key)
 import qualified Data.Vault.Lazy as Vault
 import qualified Data.Text as T
 import qualified Data.Map as Map
-
-import Web.Neptune.Util
-import Web.Neptune.Core
 
 import Data.Monoid
 import Control.Monad.Reader
@@ -36,17 +35,17 @@ import Control.Monad.State
 
 {- These are for adding routes to a neptune. -}
 endpoint :: EndpointId -> Route -> Method -> Action -> Neptune
-endpoint eid (R fore back) m a = NeptuneM $ modify $ \s -> s
+endpoint eid (R fore back) m a = Neptune $ modify $ \s -> s
     { nHandlers = nHandlers s ++ [Endpoint fore m a]
     , nReversers = softInsert eid back (nReversers s)
     }
 
 external :: EndpointId -> Domain -> Reverse -> Neptune
-external eid domain back = NeptuneM $ modify $ \s -> s
+external eid domain back = Neptune $ modify $ \s -> s
     { nReversers = softInsert eid (back >> setDomain domain) (nReversers s) }
 
 include :: Route -> Neptune -> Neptune
-include (R fore back) neptune = NeptuneM $ modify $ \s -> s
+include (R fore back) neptune = Neptune $ modify $ \s -> s
     { nHandlers = nHandlers s ++ [Include fore (nHandlers built)]
     , nReversers = foldr (\(eid, back') -> softInsert eid (back >> back'))
                          (nReversers s)
@@ -56,7 +55,7 @@ include (R fore back) neptune = NeptuneM $ modify $ \s -> s
     built = buildNeptune undefined neptune
 
 cluster :: EndpointId -> Route -> [(Method, Action)] -> Neptune
-cluster eid (R fore back) actions = NeptuneM $ modify $ \s -> s
+cluster eid (R fore back) actions = Neptune $ modify $ \s -> s
     { nHandlers = nHandlers s ++ [Include fore $ map (uncurry mkHandler) actions]
     , nReversers = softInsert eid back (nReversers s)
     }

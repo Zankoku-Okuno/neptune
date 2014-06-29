@@ -1,0 +1,63 @@
+module Web.Neptune.AltResponse (
+      handleBadContent
+    , handleBadResource
+    , handleBadMethod
+    , handleBadAccept
+    , handleBadLanguage
+    , handleNotAuthorized
+    , handleNoUrlReverse
+    , handleTimeout
+    , handleInternalError
+    ) where
+
+import Web.Neptune.Util
+import Web.Neptune.Core
+
+import Control.Monad.State
+
+
+handleBadContent :: MediaType -> ([MediaType] -> Format) -> Neptune
+handleBadContent media format = Neptune $ modify $ \s -> s {
+    nErrorHandlers = (nErrorHandlers s) {
+        ehBadContent = (ehBadContent . nErrorHandlers) s ++ [(media, format)] }
+    }
+handleBadResource :: MediaType -> Format -> Neptune
+handleBadResource media format = Neptune $ modify $ \s -> s {
+    nErrorHandlers = (nErrorHandlers s) {
+        ehBadResource = (ehBadResource . nErrorHandlers) s ++ [(media, format)] }
+    }
+handleBadMethod :: MediaType -> ([Method] -> Format) -> Neptune
+handleBadMethod media format = Neptune $ modify $ \s -> s {
+    nErrorHandlers = (nErrorHandlers s) {
+        ehBadMethod = (ehBadMethod . nErrorHandlers) s ++ [(media, format)] }
+    }
+handleBadAccept :: MediaType -> ([MediaType] -> Format) -> Neptune
+handleBadAccept media format = Neptune $ modify $ \s -> s {
+    nErrorHandlers = (nErrorHandlers s) {
+        ehBadAccept = (ehBadAccept . nErrorHandlers) s ++ [(media, format)] }
+    }
+handleBadLanguage :: MediaType -> (Format) -> Neptune
+handleBadLanguage media format = Neptune $ modify $ \s -> s {
+    nErrorHandlers = (nErrorHandlers s) {
+        ehBadLanguage = (ehBadLanguage . nErrorHandlers) s ++ [(media, format)] }
+    }
+handleNotAuthorized :: MediaType -> Format -> Neptune
+handleNotAuthorized media format = Neptune $ modify $ \s -> s {
+    nErrorHandlers = (nErrorHandlers s) {
+        ehNotAuthorized = (ehNotAuthorized . nErrorHandlers) s ++ [(media, format)] }
+    }
+handleNoUrlReverse :: MediaType -> (EndpointId -> Vault -> Format) -> Neptune
+handleNoUrlReverse media format = Neptune $ modify $ \s -> s {
+    nErrorHandlers = (nErrorHandlers s) {
+        ehNoUrlReverse = (ehNoUrlReverse . nErrorHandlers) s ++ [(media, format)] }
+    }
+handleTimeout :: MediaType -> (Format) -> Neptune
+handleTimeout media format = Neptune $ modify $ \s -> s {
+    nErrorHandlers = (nErrorHandlers s) {
+        ehTimeout = (ehTimeout . nErrorHandlers) s ++ [(media, format)] }
+    }
+handleInternalError :: MediaType -> Format -> Neptune
+handleInternalError media format = Neptune $ modify $ \s -> s {
+    nErrorHandlers = (nErrorHandlers s) {
+        ehInternalError = (ehInternalError . nErrorHandlers) s ++ [(media, format)] }
+    }

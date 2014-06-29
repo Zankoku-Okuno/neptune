@@ -3,6 +3,7 @@ module Web.Neptune.Util (
     , ByteString, Text
     , LByteString, LText
     , IsString(..)
+    , Map, Vault, Key
     
     , nothing
     , fromMaybeM
@@ -12,8 +13,11 @@ module Web.Neptune.Util (
     , decodeUrl
     ) where
 
+import Data.Default as X
 import Data.Maybe as X
 import Control.Monad.Maybe
+import Data.Map (Map)
+import Data.Vault.Lazy (Vault, Key)
 import qualified Data.Map as M
 
 import Data.Text (Text)
