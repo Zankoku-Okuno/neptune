@@ -40,7 +40,7 @@ library
                        Web.Neptune.Action,
                        Web.Neptune.Format,
                        Web.Neptune.AltResponse,
-                       Web.Neptune.Http
+                       Web.Neptune.Wai
   -- other-modules:       
   build-depends:       base ==4.6.*,
                        word8 ==0.0.4,

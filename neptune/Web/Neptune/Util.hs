@@ -2,6 +2,7 @@
 module Web.Neptune.Util (
     -- * Modules
       module Data.Default
+    , module Data.Time.Clock
     , module Data.Maybe
     , module Data.Monoid
     , module Control.Applicative
@@ -22,6 +23,8 @@ module Web.Neptune.Util (
     , encodePercent
     , decodePercent
     ) where
+
+import Data.Time.Clock
 
 import Data.Default
 import Data.Maybe

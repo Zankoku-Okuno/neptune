@@ -10,8 +10,8 @@ module Web.Neptune.Route (
     , capture
     -- low-level route matching combinators
     , consume
-    , ParamMonad(param)
-    , setParam
+    , VaultMonad(vault)
+    , setVault
     , noMatch
     , RequestMonad(request, requests)
     -- low-level route reversing combinators
@@ -34,7 +34,7 @@ import Control.Monad.Reader
 import Control.Monad.State
 
 {- These are for adding routes to a neptune. -}
-endpoint :: EndpointId -> Route -> Method -> Action -> Neptune
+endpoint :: EndpointId -> Route -> Verb -> Action -> Neptune
 endpoint eid (R fore back) m a = Neptune $ modify $ \s -> s
     { nHandlers = nHandlers s ++ [Endpoint fore m a]
     , nReversers = softInsert eid back (nReversers s)
@@ -54,7 +54,7 @@ include (R fore back) neptune = Neptune $ modify $ \s -> s
     where
     built = buildNeptune undefined neptune
 
-cluster :: EndpointId -> Route -> [(Method, Action)] -> Neptune
+cluster :: EndpointId -> Route -> [(Verb, Action)] -> Neptune
 cluster eid (R fore back) actions = Neptune $ modify $ \s -> s
     { nHandlers = nHandlers s ++ [Include fore $ map (uncurry mkHandler) actions]
     , nReversers = softInsert eid back (nReversers s)
@@ -75,17 +75,17 @@ consume n = Router $ do
     modify $ \s -> s { rPath = suffix }
     return prefix
 
-instance ParamMonad RouterM where
-    param key = Router $ do
-        vault <- rParams <$> get
+instance VaultMonad RouterM where
+    vault key = Router $ do
+        vault <- rVault <$> get
         return $ key `Vault.lookup` vault
 
 {-| Adds a parameter to the result. -}
-setParam :: Key a -> a -> Router
-setParam key x = Router $ do
-    RS { rParams = vault } <- get
+setVault :: Key a -> a -> Router
+setVault key x = Router $ do
+    RS { rVault = vault } <- get
     let vault' = Vault.insert key x vault
-    modify $ \s -> s { rParams = vault' }
+    modify $ \s -> s { rVault = vault' }
 
 {-| Always fails to match. -}
 noMatch :: RouterM a
@@ -131,7 +131,7 @@ capture (f, f') key = R fore back
     fore = do
         [segment] <- consume 1
         param <- maybe noMatch return $ f segment
-        setParam key param
+        setVault key param
     back = create =<< f' <$> getArg key
 
 captureIO :: (Text -> IO (Maybe a), a -> Text) -> Key a -> Route
@@ -140,7 +140,7 @@ captureIO (f, f') key = R fore back
     fore = do
         [segment] <- consume 1
         param <- fromMaybeM noMatch $ liftIO $ f segment
-        setParam key param
+        setVault key param
     back = create =<< f' <$> getArg key
 
 setDomain :: Domain -> Reverse

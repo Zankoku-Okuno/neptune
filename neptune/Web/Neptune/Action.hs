@@ -1,5 +1,5 @@
 module Web.Neptune.Action (
-      ParamMonad(param)
+      VaultMonad(vault)
     , RequestMonad(request, requests)
     , ReverseMonad(url)
     ) where
@@ -10,9 +10,9 @@ import Web.Neptune.Core
 import qualified Data.Vault.Lazy as Vault
 import Control.Monad.State
 
-instance ParamMonad ActionM where
-    param key = Action $ do
-        vault <- hParams <$> get
+instance VaultMonad ActionM where
+    vault key = Action $ do
+        vault <- hVault <$> get
         return $ key `Vault.lookup` vault
 
 instance RequestMonad ActionM where

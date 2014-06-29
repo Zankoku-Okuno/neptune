@@ -1,7 +1,7 @@
 module Web.Neptune.AltResponse (
       handleBadContent
     , handleBadResource
-    , handleBadMethod
+    , handleBadVerb
     , handleBadAccept
     , handleBadLanguage
     , handleBadPermissions
@@ -13,7 +13,6 @@ module Web.Neptune.AltResponse (
 import Web.Neptune.Util
 import Web.Neptune.Core
 
-import Data.Time.Clock
 import Control.Monad.State
 
 
@@ -27,10 +26,10 @@ handleBadResource media format = Neptune $ modify $ \s -> s {
     nErrorHandlers = (nErrorHandlers s) {
         ehBadResource = (ehBadResource . nErrorHandlers) s ++ [(media, format)] }
     }
-handleBadMethod :: MediaType -> ([Method] -> LByteString) -> Neptune
-handleBadMethod media format = Neptune $ modify $ \s -> s {
+handleBadVerb :: MediaType -> ([Verb] -> LByteString) -> Neptune
+handleBadVerb media format = Neptune $ modify $ \s -> s {
     nErrorHandlers = (nErrorHandlers s) {
-        ehBadMethod = (ehBadMethod . nErrorHandlers) s ++ [(media, format)] }
+        ehBadVerb = (ehBadVerb . nErrorHandlers) s ++ [(media, format)] }
     }
 handleBadAccept :: MediaType -> ([MediaType] -> LByteString) -> Neptune
 handleBadAccept media format = Neptune $ modify $ \s -> s {

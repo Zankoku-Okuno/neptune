@@ -36,7 +36,7 @@ module Web.Neptune.Core (
     , runFormatM
     -- * Convenience Monad Classes
     , RequestMonad(..)
-    , ParamMonad(..)
+    , VaultMonad(..)
     , ReverseMonad(..)
     -- * Dispatch Processes
     , evalHandler
@@ -54,7 +54,6 @@ import qualified Data.ByteString.Lazy as LBS
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as LT
 
-import Data.Time.Clock
 import qualified Data.Map as Map
 import qualified Data.Vault.Lazy as Vault
 
@@ -181,7 +180,7 @@ type Router = RouterM ()
     also track what methods are allowable on the resources that could have
     been routed to.
 -}
-newtype RouterM a = Router { unRoute :: StateT RoutingState (MaybeT (WriterT [Method] (ResultT IO))) a }
+newtype RouterM a = Router { unRoute :: StateT RoutingState (MaybeT (WriterT [Verb] (ResultT IO))) a }
     deriving (Functor, Applicative, Monad, MonadIO)
 
 {-| Perform a single route attempt. If the route fails, then we
@@ -190,7 +189,7 @@ newtype RouterM a = Router { unRoute :: StateT RoutingState (MaybeT (WriterT [Me
 -}
 runRouteM :: RoutingState
           -> RouterM a
-          -> WriterT [Method] (ResultT IO) (Maybe RoutingState)
+          -> WriterT [Verb] (ResultT IO) (Maybe RoutingState)
 runRouteM s = runMaybeT . flip execStateT s . unRoute
 
 {-| The is the \"second half\" of 'runRouteM'. It assumes that all routes
@@ -199,8 +198,8 @@ runRouteM s = runMaybeT . flip execStateT s . unRoute
     matched, but the requested verb was inappropriate. If the URL did not
     match at all, then the list of verbs will be empty.
 -}
-runRoutesM :: WriterT [Method] (ResultT IO) (Maybe a)
-           -> ResultT IO (Either [Method] a)
+runRoutesM :: WriterT [Verb] (ResultT IO) (Maybe a)
+           -> ResultT IO (Either [Verb] a)
 runRoutesM action = do
     (m_result, allowed) <- runWriterT action
     return $ case m_result of
@@ -209,7 +208,7 @@ runRoutesM action = do
 
 {-| Maintain state during a single routing attempt. -}
 data RoutingState = RS { rPath :: PathInfo
-                       , rParams :: Vault
+                       , rVault :: Vault
                        , rRequest :: Request
                        }
 
@@ -241,7 +240,7 @@ runReverseM s = flip execStateT (Nothing, []) . flip runReaderT s . unReverse
     With appropriate resource structure and matching sub-apps, search time
     can be made logarithmic in the number of resources.
 -}
-data Handler = Endpoint Router Method Action
+data Handler = Endpoint Router Verb Action
              | Include Router [Handler]
 
 {-| During handling, several data must be maintained for reading and possibly for writing.
@@ -250,7 +249,7 @@ data Handler = Endpoint Router Method Action
     we might want to use.
 -}
 data HandlingState = HS { hRequest :: Request
-                        , hParams :: Vault
+                        , hVault :: Vault
                         , hResponse :: Response
                         , hNeptune :: NeptuneState
                         }
@@ -301,7 +300,7 @@ runFormatM s = flip runReaderT s . unFormat
 data ErrorHandlers = EHs
     { ehBadContent :: [(MediaType, [MediaType] -> LByteString)]
     , ehBadResource :: [(MediaType, LByteString)]
-    , ehBadMethod :: [(MediaType, [Method] -> LByteString)]
+    , ehBadVerb :: [(MediaType, [Verb] -> LByteString)]
     , ehBadAccept :: [(MediaType, [MediaType] -> LByteString)]
     , ehBadLanguage :: [(MediaType, LByteString)]
     , ehBadPermissions :: [(MediaType, LByteString)]
@@ -313,7 +312,7 @@ instance Default ErrorHandlers where
     def = EHs
         { ehBadContent = []
         , ehBadResource = []
-        , ehBadMethod = []
+        , ehBadVerb = []
         , ehBadAccept = []
         , ehBadLanguage = []
         , ehBadPermissions = []
@@ -329,8 +328,8 @@ class Monad m => RequestMonad m where
     requests :: (Request -> a) -> m a
     requests f = liftM f request
 {-| Any monad from which the vault may be accessed. -}
-class Monad m => ParamMonad m where
-    param :: Key a -> m (Maybe a) --FIXME name
+class Monad m => VaultMonad m where
+    vault :: Key a -> m (Maybe a)
 {-| Any monad in which URLs may be reversed. -}
 class Monad m => ReverseMonad m where
     url :: EndpointId -> Vault -> [(Text, ByteString)] -> m Location
@@ -341,14 +340,14 @@ class Monad m => ReverseMonad m where
 -}
 evalHandler :: RoutingState
             -> Handler
-            -> WriterT [Method] (ResultT IO) (Maybe (Vault, Action))
+            -> WriterT [Verb] (ResultT IO) (Maybe (Vault, Action))
 evalHandler s (Endpoint route method action) = do
     result <- runRouteM s route
     case result of
         Nothing -> return Nothing
         Just result ->
             if null (rPath result) && method == verb (rRequest result)
-                then return $ Just (rParams result, action)
+                then return $ Just (rVault result, action)
                 else const Nothing <$> tell [method]
 evalHandler s (Include route subhandlers) = do
     result <- runRouteM s route
@@ -359,7 +358,7 @@ evalHandler s (Include route subhandlers) = do
 {-| Attempt to route through any of a list of handlers. -}
 evalHandlers :: RoutingState
              -> [Handler]
-             -> WriterT [Method] (ResultT IO) (Maybe (Vault, Action))
+             -> WriterT [Verb] (ResultT IO) (Maybe (Vault, Action))
 evalHandlers s [] = return Nothing
 evalHandlers s (h:hs) = do
     m_result <- evalHandler s h

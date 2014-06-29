@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Web.Neptune.Http where
+module Web.Neptune.Wai where
 
 import Web.Neptune.Util
 import Web.Neptune.Core
@@ -34,7 +34,7 @@ waiToNeptune :: Wai.Request -> IO Request
 waiToNeptune r = do
     (raw_params, raw_files, reqBody) <- parseBody
     return $ Request
-        { location = Wai.pathInfo r
+        { resource = Wai.pathInfo r
         , verb = Wai.requestMethod r
         , acceptType = acceptType
         , acceptLang = error "toNeptune: get acceptLang" --STUB
@@ -104,10 +104,10 @@ waiFromNeptune ehs accept (BadContent allowed) = Wai.responseLBS Wai.status415 h
                            (ehBadContent ehs)
 waiFromNeptune ehs accept BadResource = Wai.responseLBS Wai.status404 headers body
     where (headers, body) = negotiateError "" accept [] (ehBadResource ehs)
-waiFromNeptune ehs accept (BadMethod allowed) = Wai.responseLBS Wai.status405 headers (f allowed)
+waiFromNeptune ehs accept (BadVerb allowed) = Wai.responseLBS Wai.status405 headers (f allowed)
     where (headers, f) = negotiateError (const "") accept
                            [("Allowed", BS.intercalate "," allowed)]
-                           (ehBadMethod ehs)
+                           (ehBadVerb ehs)
 waiFromNeptune ehs accept (BadAccept producible) = Wai.responseLBS Wai.status406 headers (f producible)
     where (headers, f) = negotiateError (const "") accept
                            [("Allowed", BS.intercalate "," (fromString . show <$> producible))]
@@ -140,16 +140,16 @@ serveWai neptune = app --FIXME make sure exceptions get turned into http500
         let toWai = waiFromNeptune (nErrorHandlers builtNeptune) (acceptType request)
         response <- handleResult toWai $ do
             let routingState = RS { rRequest = request
-                                  , rPath = location request
-                                  , rParams = Wai.vault waiRequest
+                                  , rPath = resource request
+                                  , rVault = Wai.vault waiRequest
                                   }
             m_route <- runRoutesM $ evalHandlers routingState (nHandlers builtNeptune)
             (vault, action) <- case m_route of
                 Left [] -> raise BadResource
-                Left allowed -> raise $ BadMethod allowed
+                Left allowed -> raise $ BadVerb allowed
                 Right route -> return route
             let handlingState = HS { hRequest = request
-                                   , hParams = vault
+                                   , hVault = vault
                                    , hResponse = def
                                    , hNeptune = builtNeptune
                                    }

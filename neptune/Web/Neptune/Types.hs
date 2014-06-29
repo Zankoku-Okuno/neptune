@@ -12,7 +12,7 @@ module Web.Neptune.Types (
     , Domain
     , PathInfo
     -- ** Verbs
-    , Method
+    , Verb
     -- ** Content
     , MediaType
     , AcceptMedia
@@ -28,7 +28,6 @@ module Web.Neptune.Types (
 
 import Web.Neptune.Util
 
-import Data.Time.Clock
 import qualified Data.Map as Map
 import qualified Data.Vault.Lazy as Vault
 import qualified Network.Wai.Parse as Wai
@@ -52,14 +51,14 @@ type PathInfo = [Text]
 type Location = (Domain, PathInfo, Map Text Parameter)
 
 -- | Verbs
-type Method = ByteString
+type Verb = ByteString
 
 -- | A single, specific media type.
 type MediaType = Wai.MediaType
 -- | A range of media types suitable for content-negotiation.
 type AcceptMedia = [Wai.Quality MediaType]
 -- | A single, specific language
-type Language = Text --FIXME
+type Language = Text --STUB
 -- | A range of languages suitable for content-negotiation.
 type AcceptLang = [Wai.Quality Language]
 
@@ -84,8 +83,8 @@ type Expiry = Integer
 
 -}
 data Request = Request
-    { location :: PathInfo
-    , verb :: Method
+    { resource :: PathInfo
+    , verb :: Verb
     , acceptType :: AcceptMedia
     , acceptLang :: AcceptLang
     , appState :: Map Text AppState
@@ -113,7 +112,7 @@ data Response = Response
               | Redirect       Location Bool --the Bool means it is permanent
               | BadContent     [MediaType] -- the types the app can consume
               | BadResource    
-              | BadMethod      [Method]
+              | BadVerb        [Verb]
               | BadAccept      [MediaType] -- the types the app can produce
               | BadLanguage    
               | BadPermissions  
