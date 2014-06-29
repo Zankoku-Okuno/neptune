@@ -9,6 +9,8 @@ import qualified Data.ByteString.Lazy as LBS
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as LT
 
+import Data.Time.Clock
+
 import qualified Data.Map as Map
 import qualified Data.Vault.Lazy as Vault
 
@@ -67,7 +69,7 @@ data Response = Response
               | BadLanguage    
               | BadPermissions  
               | NoUrlReverse   EndpointId Vault
-              | Timeout        --TODO time taken
+              | Timeout        DiffTime
               | InternalError  
               --TODO? a Debug response
 
@@ -96,7 +98,7 @@ data NeptuneState = NS { nHandlers :: [Handler]
                        , nReversers :: Map EndpointId Reverse
                        , nDomain :: Domain
                        , nErrorHandlers :: ErrorHandlers
-                       } --TODO error formatters
+                       }
 type Neptune = NeptuneM ()
 buildNeptune :: Domain
              -> Neptune
@@ -215,7 +217,7 @@ data ErrorHandlers = EHs
     , ehBadLanguage :: [(MediaType, LByteString)]
     , ehBadPermissions :: [(MediaType, LByteString)]
     , ehNoUrlReverse :: [(MediaType, EndpointId -> Vault -> LByteString)]
-    , ehTimeout :: [(MediaType, LByteString)]
+    , ehTimeout :: [(MediaType, DiffTime -> LByteString)]
     , ehInternalError :: [(MediaType, LByteString)]
     }
 instance Default ErrorHandlers where

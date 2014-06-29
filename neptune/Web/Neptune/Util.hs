@@ -1,16 +1,20 @@
 module Web.Neptune.Util (
       module X
-    , ByteString, Text
-    , LByteString, LText
+    -- * String Processing
+    , ByteString
+    , Text
+    , LByteString
+    , LText
     , IsString(..)
+    -- * Containers
     , Map, Vault, Key
-    
+    , softInsert
+    -- * Maybe Monad
     , nothing
     , fromMaybeM
-    , softInsert
-
-    , encodeUrl
-    , decodeUrl
+    -- * URL Codecs
+    , encodePercent
+    , decodePercent
     ) where
 
 import Data.Default as X
@@ -35,39 +39,54 @@ import Data.Monoid as X
 import Control.Applicative as X
 import Control.Monad as X
 
-
+{-| I don't like how strict and lazy text share the same name.
+    It makes reading type errors annoying when using multiple libraries.
+-}
 type LText = LT.Text
+{-| I don't like how strict and lazy byte strings share the same name.
+    It makes reading type errors annoying when using multiple libraries.
+-}
 type LByteString = LBS.ByteString
 
 
 fromMaybeM :: (Monad m) => m a -> m (Maybe a) -> m a
 fromMaybeM def x = maybe def return =<< x
 
+{-| The MaybeT monad's version of the Maybe type's Nothing. -}
 nothing :: (Monad m) => MaybeT m a
 nothing = MaybeT $ return Nothing
 
+{-| Insert into a map only when the map does not already contain something under the key. -}
 softInsert :: (Ord k) => k -> v -> M.Map k v -> M.Map k v
 softInsert key val map =
     if key `M.member` map
         then map
         else M.insert key val map
 
+{-| Utf-8 encode and %-escape all control characters, space, percent, and high-order bytes.
+    
+    Additionally, any bytes passed in the `[Word8]` argument are also percent-escaped.
+    This can be useful, for example, to escape slash, question mark and ampersand in URIs.
+-}
+encodePercent :: [Word8] -> Text -> ByteString
+encodePercent extra = BS.pack . concatMap (encodePercentByte extra) . BS.unpack . encodeUtf8
 
-encodeUrl :: [Word8] -> Text -> ByteString
-encodeUrl extra = BS.pack . concatMap (encodeUrlByte extra) . BS.unpack . encodeUtf8
-
-encodeUrlByte :: [Word8] -> Word8 -> [Word8]
-encodeUrlByte extra c | c <= 32 || c >= 127 
+encodePercentByte :: [Word8] -> Word8 -> [Word8]
+encodePercentByte extra c | c <= 32 || c >= 127 
                      || c == _percent
                      || c `elem` extra
     = (_percent:) . BS.unpack . fromString . toHex $ c
     where
     toHex c = if length str == 1 then '0':str else str
         where str = showHex c ""
-encodeUrlByte _ c = [c]
+encodePercentByte _ c = [c]
 
-decodeUrl :: ByteString -> Text
-decodeUrl = decodeUtf8 . BS.pack . reverse . go [] . BS.unpack
+{-| Convert %-escapes into bytes and Utf-8 decode.
+
+    Plus signs are not converted.
+-}
+decodePercent :: ByteString -> Text
+decodePercent = decodeUtf8 . BS.pack . reverse . go [] . BS.unpack
     where
     go :: [Word8] -> [Word8] -> [Word8]
     go acc [] = acc

@@ -22,7 +22,7 @@ import qualified Web.Cookie as Wai
 formatURI :: Location -> ByteString
 formatURI (domain, path, query) = encode domain <> "/" <> raw_path <> raw_query
     where
-    encode = encodeUrl [_slash, _question, _ampersand]
+    encode = encodePercent [_slash, _question, _ampersand]
     raw_path = BS.intercalate "/" (encode <$> path)
     raw_query = case Map.toList query of
         [] -> ""
@@ -49,7 +49,7 @@ waiToNeptune r = do
                  in fromMaybe [] $ Wai.parseAccept accept
     appState = let cookies = maybe [] Wai.parseCookies $ "Cookie" `lookup` headers
                in foldl cookieMap Map.empty cookies
-        where cookieMap acc (name, value) = Map.insert (decodeUrl name) value acc
+        where cookieMap acc (name, value) = Map.insert (decodePercent name) value acc
     parseBody = case Wai.getRequestBodyType r of
         Nothing -> do
             let mime = fromMaybe "application/octet-stream" $ do
@@ -65,7 +65,7 @@ waiToNeptune r = do
     mkMap = foldr addParam Map.empty
         where
         addParam (bsName, value) acc =
-            let name = decodeUrl bsName
+            let name = decodePercent bsName
             in if name `Map.member` acc
                 then Map.adjust (value:) name acc
                 else Map.insert name [value] acc
@@ -83,7 +83,7 @@ waiFromNeptune _ _ r@(Response {}) = Wai.responseLBS Wai.status200 headers (body
         Nothing -> [ ("Cache-Control", "private, max-age=0, no-cache, no-store")]
         Just dt -> [ ("Cache-Control", "no-transform, public, max-age=" <> (fromString . show) dt)
                    , ("Vary", "Accept,Accept-Language,Accept-Encoding") ] --TODO check that this is all varying needed
-    cookies = (\(k, v) -> ("Set-Cookie", mkCookie (encodeUrl [61] k) v)) <$> Map.toList (updateAppState r)
+    cookies = (\(k, v) -> ("Set-Cookie", mkCookie (encodePercent [61] k) v)) <$> Map.toList (updateAppState r)
         where
         mkCookie name Nothing =
             name <> "=; Max-Age=0"
@@ -98,28 +98,29 @@ waiFromNeptune ehs accept (Redirect loc False) = Wai.responseLBS Wai.status307 h
     where headers = [("Location", formatURI loc)]
 
 
-waiFromNeptune ehs accept (BadContent allowed) = Wai.responseLBS Wai.status415 headers' (f allowed)
-    where (headers', f) = negotiateError (const "") accept
+waiFromNeptune ehs accept (BadContent allowed) = Wai.responseLBS Wai.status415 headers (f allowed)
+    where (headers, f) = negotiateError (const "") accept
                            [("Allowed", BS.intercalate "," (fromString . show <$> allowed))]
                            (ehBadContent ehs)
-waiFromNeptune ehs accept BadResource = Wai.responseLBS Wai.status404 headers' body
-    where (headers', body) = negotiateError "" accept [] (ehBadResource ehs)
-waiFromNeptune ehs accept (BadMethod allowed) = Wai.responseLBS Wai.status405 headers' (f allowed)
-    where (headers', f) = negotiateError (const "") accept
+waiFromNeptune ehs accept BadResource = Wai.responseLBS Wai.status404 headers body
+    where (headers, body) = negotiateError "" accept [] (ehBadResource ehs)
+waiFromNeptune ehs accept (BadMethod allowed) = Wai.responseLBS Wai.status405 headers (f allowed)
+    where (headers, f) = negotiateError (const "") accept
                            [("Allowed", BS.intercalate "," allowed)]
                            (ehBadMethod ehs)
-waiFromNeptune ehs accept (BadAccept producible) = Wai.responseLBS Wai.status406 headers' (f producible)
-    where (headers', f) = negotiateError (const "") accept
+waiFromNeptune ehs accept (BadAccept producible) = Wai.responseLBS Wai.status406 headers (f producible)
+    where (headers, f) = negotiateError (const "") accept
                            [("Allowed", BS.intercalate "," (fromString . show <$> producible))]
                            (ehBadAccept ehs)
 waiFromNeptune ehs accept (BadLanguage) = error "no BadLanguage handler" --STUB
-waiFromNeptune ehs accept BadPermissions = Wai.responseLBS Wai.status403 headers' body
-    where (headers', body) = negotiateError "" accept [] (ehBadPermissions ehs)
-waiFromNeptune ehs accept (NoUrlReverse eid vault) = Wai.responseLBS Wai.status500 headers' (f eid vault)
-    where (headers', f) = negotiateError (const $ const "") accept [] (ehNoUrlReverse ehs)
-waiFromNeptune ehs accept (Timeout) = error "no Timeout handler" --STUB
-waiFromNeptune ehs accept InternalError = Wai.responseLBS Wai.status500 headers' body
-    where (headers', body) = negotiateError "" accept [] (ehInternalError ehs)
+waiFromNeptune ehs accept BadPermissions = Wai.responseLBS Wai.status403 headers body
+    where (headers, body) = negotiateError "" accept [] (ehBadPermissions ehs)
+waiFromNeptune ehs accept (Timeout dt) = Wai.responseLBS Wai.status504 headers (f dt)
+    where (headers, f) = negotiateError (const "") accept [] (ehTimeout ehs)
+waiFromNeptune ehs accept InternalError = Wai.responseLBS Wai.status500 headers body
+    where (headers, body) = negotiateError "" accept [] (ehInternalError ehs)
+waiFromNeptune ehs accept (NoUrlReverse eid vault) = Wai.responseLBS Wai.status500 headers (f eid vault)
+    where (headers, f) = negotiateError (const $ const "") accept [] (ehNoUrlReverse ehs)
 
 negotiateError :: a -> AcceptMedia
                -> [Wai.Header] -> [(MediaType, a)]
@@ -131,7 +132,7 @@ negotiateError empty accept headers formats =
 
 
 serveWai :: Neptune -> Wai.Application
-serveWai neptune = app --TODO make sure exceptions get turned into http500
+serveWai neptune = app --FIXME make sure exceptions get turned into http500
     where
     builtNeptune = buildNeptune "localhost:8080" neptune
     app waiRequest respond = do

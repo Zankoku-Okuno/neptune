@@ -13,6 +13,7 @@ module Web.Neptune.AltResponse (
 import Web.Neptune.Util
 import Web.Neptune.Core
 
+import Data.Time.Clock
 import Control.Monad.State
 
 
@@ -46,12 +47,7 @@ handleBadPermissions media format = Neptune $ modify $ \s -> s {
     nErrorHandlers = (nErrorHandlers s) {
         ehBadPermissions = (ehBadPermissions . nErrorHandlers) s ++ [(media, format)] }
     }
-handleNoUrlReverse :: MediaType -> (EndpointId -> Vault -> LByteString) -> Neptune
-handleNoUrlReverse media format = Neptune $ modify $ \s -> s {
-    nErrorHandlers = (nErrorHandlers s) {
-        ehNoUrlReverse = (ehNoUrlReverse . nErrorHandlers) s ++ [(media, format)] }
-    }
-handleTimeout :: MediaType -> (LByteString) -> Neptune
+handleTimeout :: MediaType -> (DiffTime -> LByteString) -> Neptune
 handleTimeout media format = Neptune $ modify $ \s -> s {
     nErrorHandlers = (nErrorHandlers s) {
         ehTimeout = (ehTimeout . nErrorHandlers) s ++ [(media, format)] }
@@ -60,4 +56,9 @@ handleInternalError :: MediaType -> LByteString -> Neptune
 handleInternalError media format = Neptune $ modify $ \s -> s {
     nErrorHandlers = (nErrorHandlers s) {
         ehInternalError = (ehInternalError . nErrorHandlers) s ++ [(media, format)] }
+    }
+handleNoUrlReverse :: MediaType -> (EndpointId -> Vault -> LByteString) -> Neptune
+handleNoUrlReverse media format = Neptune $ modify $ \s -> s {
+    nErrorHandlers = (nErrorHandlers s) {
+        ehNoUrlReverse = (ehNoUrlReverse . nErrorHandlers) s ++ [(media, format)] }
     }

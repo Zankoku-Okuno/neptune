@@ -5,14 +5,24 @@ name:                neptune
 version:             0.0.0.0
 synopsis:            Plumbing for mature REST services.
 description:         Implementations of the REST architecture nearly always ignore some
-                     architectural constraints. Further, I've yet to see a "REST" framework that
+                     architectural constraints. Further, I've yet to see a \"REST\" framework that
                      is not specialized to only HTTP services. Neptune includes facilities for
-                     resources, verbs, content negotiation, code-on-demand and hypermedia, all
-                     while remaining protocol-independent.
+                     resources, verbs, content negotiation, and state transfer, all
+                     while remaining protocol-independent. Unfortunately, hypermedia and
+                     code-on-demand are strongly tied to the medium in question, so we can't build
+                     that part into a media-type-agnostic core.
                      .
-                     That being said, this is a work-in-progress, and I've decided to focus on WAI
-                     for now. So, not protocol-independence yet. After I've generalized the system,
-                     I expect to split the WAI specializations out into their own package.
+                     That being said, HTTP is a widely-used protocol that support REST very well,
+                     so we've supplied a Neptune-WAI interface. This will likely be split off into
+                     its own package. Additionally, we may well develop libraries to aid in generating
+                     various media that support hypermedia and code-on-demand.
+                     .
+                     Neptune is built in the style of Scotty rather than Yesod. In practice, this
+                     means no complex Template Haskell, but more possibility for errors to make it
+                     through the compiler. I don't think the additional danger is very great, and
+                     the lack of Template Haskell errors eases the learning curve significatly.
+                     Nevertheless, it might be nice to see a \"Template Neptune\" implementation
+                     based on this framework.
 homepage:            github.com/Zankoku-Okuno/neptune
 license:             BSD3
 license-file:        LICENSE
@@ -32,4 +42,19 @@ library
                        Web.Neptune.AltResponse,
                        Web.Neptune.Http
   -- other-modules:       
-  build-depends:       base ==4.6.*, wai ==3.*, mtl ==2.1.*, http-types ==0.8.*, text ==0.11.*, vault ==0.3.*, MaybeT ==0.1.*, http-media ==0.1.*, split ==0.2.*, containers == 0.5.*, bytestring ==0.10.*, data-default ==0.5.*, time ==1.4.*, wai-extra ==3.0.*, word8 ==0.0.4, cookie ==0.4.*
+  build-depends:       base ==4.6.*,
+                       word8 ==0.0.4,
+                       text ==0.11.*,
+                       bytestring ==0.10.*,
+                       split ==0.2.*,
+                       time ==1.4.*,
+                       containers == 0.5.*,
+                       data-default ==0.5.*,
+                       vault ==0.3.*,
+                       mtl ==2.1.*,
+                       MaybeT ==0.1.*,
+                       wai ==3.*,
+                       wai-extra ==3.0.*,
+                       http-types ==0.8.*,
+                       http-media ==0.1.*,
+                       cookie ==0.4.*
