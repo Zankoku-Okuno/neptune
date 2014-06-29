@@ -4,7 +4,7 @@ module Web.Neptune.AltResponse (
     , handleBadMethod
     , handleBadAccept
     , handleBadLanguage
-    , handleNotAuthorized
+    , handleBadPermissions
     , handleNoUrlReverse
     , handleTimeout
     , handleInternalError
@@ -16,47 +16,47 @@ import Web.Neptune.Core
 import Control.Monad.State
 
 
-handleBadContent :: MediaType -> ([MediaType] -> Format) -> Neptune
+handleBadContent :: MediaType -> ([MediaType] -> LByteString) -> Neptune
 handleBadContent media format = Neptune $ modify $ \s -> s {
     nErrorHandlers = (nErrorHandlers s) {
         ehBadContent = (ehBadContent . nErrorHandlers) s ++ [(media, format)] }
     }
-handleBadResource :: MediaType -> Format -> Neptune
+handleBadResource :: MediaType -> LByteString -> Neptune
 handleBadResource media format = Neptune $ modify $ \s -> s {
     nErrorHandlers = (nErrorHandlers s) {
         ehBadResource = (ehBadResource . nErrorHandlers) s ++ [(media, format)] }
     }
-handleBadMethod :: MediaType -> ([Method] -> Format) -> Neptune
+handleBadMethod :: MediaType -> ([Method] -> LByteString) -> Neptune
 handleBadMethod media format = Neptune $ modify $ \s -> s {
     nErrorHandlers = (nErrorHandlers s) {
         ehBadMethod = (ehBadMethod . nErrorHandlers) s ++ [(media, format)] }
     }
-handleBadAccept :: MediaType -> ([MediaType] -> Format) -> Neptune
+handleBadAccept :: MediaType -> ([MediaType] -> LByteString) -> Neptune
 handleBadAccept media format = Neptune $ modify $ \s -> s {
     nErrorHandlers = (nErrorHandlers s) {
         ehBadAccept = (ehBadAccept . nErrorHandlers) s ++ [(media, format)] }
     }
-handleBadLanguage :: MediaType -> (Format) -> Neptune
+handleBadLanguage :: MediaType -> (LByteString) -> Neptune
 handleBadLanguage media format = Neptune $ modify $ \s -> s {
     nErrorHandlers = (nErrorHandlers s) {
         ehBadLanguage = (ehBadLanguage . nErrorHandlers) s ++ [(media, format)] }
     }
-handleNotAuthorized :: MediaType -> Format -> Neptune
-handleNotAuthorized media format = Neptune $ modify $ \s -> s {
+handleBadPermissions :: MediaType -> LByteString -> Neptune
+handleBadPermissions media format = Neptune $ modify $ \s -> s {
     nErrorHandlers = (nErrorHandlers s) {
-        ehNotAuthorized = (ehNotAuthorized . nErrorHandlers) s ++ [(media, format)] }
+        ehBadPermissions = (ehBadPermissions . nErrorHandlers) s ++ [(media, format)] }
     }
-handleNoUrlReverse :: MediaType -> (EndpointId -> Vault -> Format) -> Neptune
+handleNoUrlReverse :: MediaType -> (EndpointId -> Vault -> LByteString) -> Neptune
 handleNoUrlReverse media format = Neptune $ modify $ \s -> s {
     nErrorHandlers = (nErrorHandlers s) {
         ehNoUrlReverse = (ehNoUrlReverse . nErrorHandlers) s ++ [(media, format)] }
     }
-handleTimeout :: MediaType -> (Format) -> Neptune
+handleTimeout :: MediaType -> (LByteString) -> Neptune
 handleTimeout media format = Neptune $ modify $ \s -> s {
     nErrorHandlers = (nErrorHandlers s) {
         ehTimeout = (ehTimeout . nErrorHandlers) s ++ [(media, format)] }
     }
-handleInternalError :: MediaType -> Format -> Neptune
+handleInternalError :: MediaType -> LByteString -> Neptune
 handleInternalError media format = Neptune $ modify $ \s -> s {
     nErrorHandlers = (nErrorHandlers s) {
         ehInternalError = (ehInternalError . nErrorHandlers) s ++ [(media, format)] }

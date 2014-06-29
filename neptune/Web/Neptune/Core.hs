@@ -3,6 +3,7 @@ module Web.Neptune.Core where
 
 import Web.Neptune.Util
 
+import Data.Word8
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as LBS
 import qualified Data.Text as T
@@ -24,18 +25,12 @@ import qualified Network.HTTP.Media as Wai
 import qualified Web.Cookie as Wai
 
 
-
-
-
-
-
-
-
---FIXME these need to be abstracted over
+--FIXME these need to be un-HTTPed
+--TODO? move to Web.Neptune.Types along with Request/Response
 type EndpointId = Text
 type Domain = Text
 type PathInfo = [Text]
-type Location = (Maybe Domain, PathInfo, Map Text ByteString)
+type Location = (Domain, PathInfo, Map Text ByteString)
 type Method = ByteString
 type MediaType = Wai.MediaType
 type Language = Text --FIXME
@@ -44,6 +39,7 @@ type AppState = ByteString
 type Attachment = Wai.FileInfo LByteString
 type AcceptMedia = [Wai.Quality MediaType]
 type AcceptLang = [Wai.Quality Language]
+
 
 data Request = Request
     { location :: PathInfo
@@ -62,15 +58,15 @@ data Response = Response
     , updateAppState :: Map Text (Maybe (AppState, Maybe Expiry))
     , body :: LByteString --FIXME more options for things to return
     }
-              | EmptyResponse Response Text --the Text is like an error code
-              | Redirect      Location Bool --the Bool means it is permanent
-              | BadContent    [MediaType] -- the types the app can consume
+              | EmptyResponse  Response Text --the Text is like an error code
+              | Redirect       Location Bool --the Bool means it is permanent
+              | BadContent     [MediaType] -- the types the app can consume
               | BadResource    
-              | BadMethod     [Method]
-              | BadAccept     [MediaType] -- the types the app can produce
+              | BadMethod      [Method]
+              | BadAccept      [MediaType] -- the types the app can produce
               | BadLanguage    
-              | NotAuthorized  
-              | NoUrlReverse  EndpointId Vault
+              | BadPermissions  
+              | NoUrlReverse   EndpointId Vault
               | Timeout        --TODO time taken
               | InternalError  
               --TODO? a Debug response
@@ -83,7 +79,6 @@ instance Default Response where
         , updateAppState = Map.empty
         , body = ""
         }
-
 
 
 
@@ -213,15 +208,15 @@ runFormatM s = flip runReaderT s . unFormat
 
 
 data ErrorHandlers = EHs
-    { ehBadContent :: [(MediaType, [MediaType] -> Format)]
-    , ehBadResource :: [(MediaType, Format)]
-    , ehBadMethod :: [(MediaType, [Method] -> Format)]
-    , ehBadAccept :: [(MediaType, [MediaType] -> Format)]
-    , ehBadLanguage :: [(MediaType, Format)]
-    , ehNotAuthorized :: [(MediaType, Format)]
-    , ehNoUrlReverse :: [(MediaType, EndpointId -> Vault -> Format)]
-    , ehTimeout :: [(MediaType, Format)]
-    , ehInternalError :: [(MediaType, Format)]
+    { ehBadContent :: [(MediaType, [MediaType] -> LByteString)]
+    , ehBadResource :: [(MediaType, LByteString)]
+    , ehBadMethod :: [(MediaType, [Method] -> LByteString)]
+    , ehBadAccept :: [(MediaType, [MediaType] -> LByteString)]
+    , ehBadLanguage :: [(MediaType, LByteString)]
+    , ehBadPermissions :: [(MediaType, LByteString)]
+    , ehNoUrlReverse :: [(MediaType, EndpointId -> Vault -> LByteString)]
+    , ehTimeout :: [(MediaType, LByteString)]
+    , ehInternalError :: [(MediaType, LByteString)]
     }
 instance Default ErrorHandlers where
     def = EHs
@@ -230,7 +225,7 @@ instance Default ErrorHandlers where
         , ehBadMethod = []
         , ehBadAccept = []
         , ehBadLanguage = []
-        , ehNotAuthorized = []
+        , ehBadPermissions = []
         , ehNoUrlReverse = []
         , ehTimeout = []
         , ehInternalError = []
@@ -273,7 +268,8 @@ reverseUrl :: NeptuneState -> EndpointId -> Vault -> [(Text, ByteString)] -> May
 --FIXME also reverse the query string
 reverseUrl s eid args query = do
     endpoint <- eid `Map.lookup` (nReversers s)
-    (domain, path) <- runReverseM args endpoint
+    (m_domain, path) <- runReverseM args endpoint
+    let domain = fromMaybe (nDomain s) m_domain
     return (domain, path, Map.fromList query)
 
 

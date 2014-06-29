@@ -19,6 +19,17 @@ import qualified Network.HTTP.Media as Wai
 import qualified Web.Cookie as Wai
 
 
+formatURI :: Location -> ByteString
+formatURI (domain, path, query) = encode domain <> "/" <> raw_path <> raw_query
+    where
+    encode = encodeUrl [_slash, _question, _ampersand]
+    raw_path = BS.intercalate "/" (encode <$> path)
+    raw_query = case Map.toList query of
+        [] -> ""
+        query -> undefined --STUB
+
+
+
 waiToNeptune :: Wai.Request -> IO Request
 waiToNeptune r = do
     (raw_params, raw_files, reqBody) <- parseBody
@@ -58,6 +69,8 @@ waiToNeptune r = do
             in if name `Map.member` acc
                 then Map.adjust (value:) name acc
                 else Map.insert name [value] acc
+
+
 waiFromNeptune :: ErrorHandlers -> AcceptMedia -> Response -> Wai.Response
 waiFromNeptune _ _ r@(Response {}) = Wai.responseLBS Wai.status200 headers (body r)
     where
@@ -79,28 +92,43 @@ waiFromNeptune _ _ r@(Response {}) = Wai.responseLBS Wai.status200 headers (body
         mkCookie name (Just (value, Just maxage)) =
             name <> "=" <> value <> "; Max-Age=" <> fromString (show maxage)
 waiFromNeptune ehs accept (EmptyResponse response text) = undefined --STUB
-waiFromNeptune ehs accept (Redirect loc isPerma) = undefined --STUB
-waiFromNeptune ehs accept (BadContent allowed) = undefined --STUB
-waiFromNeptune ehs accept BadResource = undefined --STUB
-waiFromNeptune ehs accept (BadMethod allowed) =
-    uncurry (Wai.responseLBS Wai.status405) $ negotiateErrorHeadersAndBody accept headers []
-    where
-    headers = [("Allowed", BS.intercalate "," allowed)]
-    handlers = [(mt, f allowed) | (mt, f) <- ehBadMethod ehs]
-waiFromNeptune ehs accept (BadAccept producible) = undefined --STUB
-waiFromNeptune ehs accept (BadLanguage) = undefined --STUB
-waiFromNeptune ehs accept (NotAuthorized) = undefined --STUB
-waiFromNeptune ehs accept (NoUrlReverse eid vault) = undefined --STUB
-waiFromNeptune ehs accept (Timeout) = undefined --STUB
-waiFromNeptune ehs accept InternalError = undefined --STUB
+waiFromNeptune ehs accept (Redirect loc True) = Wai.responseLBS Wai.status301 headers ""
+    where headers = [("Location", formatURI loc)]
+waiFromNeptune ehs accept (Redirect loc False) = Wai.responseLBS Wai.status307 headers ""
+    where headers = [("Location", formatURI loc)]
 
-negotiateErrorHeadersAndBody :: AcceptMedia
-                             -> [Wai.Header] -> [(MediaType, LByteString)]
-                             -> ([Wai.Header], LByteString)
-negotiateErrorHeadersAndBody accept headers formats =
+
+waiFromNeptune ehs accept (BadContent allowed) = Wai.responseLBS Wai.status415 headers' (f allowed)
+    where (headers', f) = negotiateError (const "") accept
+                           [("Allowed", BS.intercalate "," (fromString . show <$> allowed))]
+                           (ehBadContent ehs)
+waiFromNeptune ehs accept BadResource = Wai.responseLBS Wai.status404 headers' body
+    where (headers', body) = negotiateError "" accept [] (ehBadResource ehs)
+waiFromNeptune ehs accept (BadMethod allowed) = Wai.responseLBS Wai.status405 headers' (f allowed)
+    where (headers', f) = negotiateError (const "") accept
+                           [("Allowed", BS.intercalate "," allowed)]
+                           (ehBadMethod ehs)
+waiFromNeptune ehs accept (BadAccept producible) = Wai.responseLBS Wai.status406 headers' (f producible)
+    where (headers', f) = negotiateError (const "") accept
+                           [("Allowed", BS.intercalate "," (fromString . show <$> producible))]
+                           (ehBadAccept ehs)
+waiFromNeptune ehs accept (BadLanguage) = error "no BadLanguage handler" --STUB
+waiFromNeptune ehs accept BadPermissions = Wai.responseLBS Wai.status403 headers' body
+    where (headers', body) = negotiateError "" accept [] (ehBadPermissions ehs)
+waiFromNeptune ehs accept (NoUrlReverse eid vault) = Wai.responseLBS Wai.status500 headers' (f eid vault)
+    where (headers', f) = negotiateError (const $ const "") accept [] (ehNoUrlReverse ehs)
+waiFromNeptune ehs accept (Timeout) = error "no Timeout handler" --STUB
+waiFromNeptune ehs accept InternalError = Wai.responseLBS Wai.status500 headers' body
+    where (headers', body) = negotiateError "" accept [] (ehInternalError ehs)
+
+negotiateError :: a -> AcceptMedia
+               -> [Wai.Header] -> [(MediaType, a)]
+               -> ([Wai.Header], a)
+negotiateError empty accept headers formats =
     case negotiate accept formats of
-        Nothing -> (headers, "")
+        Nothing -> (headers, empty)
         Just (ct, body) -> (("Content-Type", (fromString . show) ct) : headers, body)
+
 
 serveWai :: Neptune -> Wai.Application
 serveWai neptune = app --TODO make sure exceptions get turned into http500
