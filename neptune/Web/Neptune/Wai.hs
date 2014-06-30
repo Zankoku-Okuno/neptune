@@ -87,11 +87,11 @@ waiFromNeptune _ _ r@(Response {}) = case body r of
     cookies = (\(k, v) -> ("Set-Cookie", mkCookie (encodePercent [61] k) v)) <$> Map.toList (updateAppState r)
         where
         mkCookie name Nothing =
-            name <> "=; Max-Age=0"
+            name <> "=; Max-Age=0; HttpOnly"
         mkCookie name (Just (value, Nothing)) =
             name <> "=" <> value
         mkCookie name (Just (value, Just maxage)) =
-            name <> "=" <> value <> "; Max-Age=" <> fromString (show maxage)
+            name <> "=" <> value <> "; Max-Age=" <> fromString (show maxage) <> "; HttpOnly"
 waiFromNeptune ehs accept (EmptyResponse response text) = undefined --STUB
 waiFromNeptune ehs accept (Redirect loc True) = Wai.responseLBS Wai.status301 headers ""
     where headers = [("Location", formatURI loc)]

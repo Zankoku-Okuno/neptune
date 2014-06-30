@@ -122,6 +122,10 @@ instance Functor Result where
 instance Applicative Result where
     pure = return
     (<*>) = ap
+instance Alternative Result where
+    empty = Alternate (error "empty Result")
+    (Normal x) <|> _ = Normal x
+    _ <|> y = y
 instance Monad Result where
     return = Normal
     Normal x >>= k = k x
@@ -137,6 +141,13 @@ instance Monad m => Functor (ResultT m) where fmap = liftM
 instance Monad m => Applicative (ResultT m) where
     pure = return
     (<*>) = ap
+instance Monad m => Alternative (ResultT m) where
+    empty = ResultT $ return empty
+    x <|> y = ResultT $ do
+        xRes <- runResultT x
+        case xRes of
+            Normal x -> return $ Normal x
+            _ -> runResultT y
 instance Monad m => Monad (ResultT m) where
     return = ResultT . return . Normal
     x >>= k = ResultT $ unResultT x >>= \x'wrap -> case x'wrap of
