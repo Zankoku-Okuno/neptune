@@ -1,6 +1,6 @@
 module Web.Neptune.Format (
-      VaultMonad(vault)
-    , RequestMonad(request, requests)
+      DatumMonad(datum)
+    , RequestMonad(request, requests, query, queryAll)
     , ReverseMonad(url)
     , ConfigMonad(config)
     ) where
@@ -11,9 +11,9 @@ import Web.Neptune.Core
 import qualified Data.Vault.Lazy as Vault
 import Control.Monad.Reader
 
-instance VaultMonad FormatM where
-    vault key = Format $ do
-        vault <- asks hVault
+instance DatumMonad FormatM where
+    datum key = Format $ do
+        vault <- asks hData
         return $ key `Vault.lookup` vault
 
 instance RequestMonad FormatM where

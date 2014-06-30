@@ -32,14 +32,14 @@ formatURI (domain, path, query) = encode domain <> "/" <> raw_path <> raw_query
 
 waiToNeptune :: Wai.Request -> IO Request
 waiToNeptune r = do
-    (raw_params, raw_files, reqBody) <- parseBody
+    (raw_query, raw_files, reqBody) <- parseBody
     return $ Request
         { resource = Wai.pathInfo r
         , verb = Wai.requestMethod r
         , acceptType = acceptType
         , acceptLang = error "toNeptune: get acceptLang" --STUB
         , appState = appState
-        , parameters = mkMap raw_params
+        , queries = mkMap raw_query
         , attachments = mkMap raw_files
         , reqBody = reqBody
         }
@@ -142,7 +142,7 @@ serveWai config neptune = app --FIXME make sure exceptions get turned into http5
         response <- handleResult toWai $ do
             let routingState = RS { rRequest = request
                                   , rPath = resource request
-                                  , rVault = Wai.vault waiRequest
+                                  , rData = Wai.vault waiRequest
                                   , rNeptune = builtNeptune
                                   }
             m_route <- runRoutesM $ evalHandlers routingState (nHandlers builtNeptune)
@@ -151,7 +151,7 @@ serveWai config neptune = app --FIXME make sure exceptions get turned into http5
                 Left allowed -> raise $ BadVerb allowed
                 Right route -> return route
             let handlingState = HS { hRequest = request
-                                   , hVault = vault
+                                   , hData = vault
                                    , hResponse = def
                                    , hNeptune = builtNeptune
                                    }

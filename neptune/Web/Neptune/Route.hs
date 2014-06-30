@@ -10,10 +10,10 @@ module Web.Neptune.Route (
     , capture
     -- low-level route matching combinators
     , consume
-    , VaultMonad(vault)
-    , setVault
+    , DatumMonad(datum)
+    , setDatum
     , noMatch
-    , RequestMonad(request, requests)
+    , RequestMonad(request, requests, query, queryAll)
     , ConfigMonad(config)
     -- low-level route reversing combinators
     , create
@@ -76,17 +76,16 @@ consume n = Router $ do
     modify $ \s -> s { rPath = suffix }
     return prefix
 
-instance VaultMonad RouterM where
-    vault key = Router $ do
-        vault <- rVault <$> get
+instance DatumMonad RouterM where
+    datum key = Router $ do
+        vault <- rData <$> get
         return $ key `Vault.lookup` vault
 
-{-| Adds a parameter to the result. -}
-setVault :: Key a -> a -> Router
-setVault key x = Router $ do
-    RS { rVault = vault } <- get
+setDatum :: Key a -> a -> Router
+setDatum key x = Router $ do
+    RS { rData = vault } <- get
     let vault' = Vault.insert key x vault
-    modify $ \s -> s { rVault = vault' }
+    modify $ \s -> s { rData = vault' }
 
 {-| Always fails to match. -}
 noMatch :: RouterM a
@@ -135,7 +134,7 @@ capture (f, f') key = R fore back
     fore = do
         [segment] <- consume 1
         param <- maybe noMatch return $ f segment
-        setVault key param
+        setDatum key param
     back = create =<< f' <$> getArg key
 
 captureIO :: (Text -> IO (Maybe a), a -> Text) -> Key a -> Route
@@ -144,7 +143,7 @@ captureIO (f, f') key = R fore back
     fore = do
         [segment] <- consume 1
         param <- fromMaybeM noMatch $ liftIO $ f segment
-        setVault key param
+        setDatum key param
     back = create =<< f' <$> getArg key
 
 setDomain :: Domain -> Reverse

@@ -1,10 +1,10 @@
 module Web.Neptune.Action (
-      VaultMonad(vault)
+      DatumMonad(datum)
     , parseBody
     , setCache, noCache
     , setAppState, delAppState
     , ReverseMonad(url)
-    , RequestMonad(request, requests)
+    , RequestMonad(request, requests, query, queryAll)
     , ConfigMonad(config)
     ) where
 
@@ -15,9 +15,9 @@ import qualified Data.Map as Map
 import qualified Data.Vault.Lazy as Vault
 import Control.Monad.State
 
-instance VaultMonad ActionM where
-    vault key = Action $ do
-        vault <- hVault <$> get
+instance DatumMonad ActionM where
+    datum key = Action $ do
+        vault <- hData <$> get
         return $ key `Vault.lookup` vault
 
 parseBody :: [(MediaType, LByteString -> ActionM a)] -> ActionM a

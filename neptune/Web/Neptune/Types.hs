@@ -89,7 +89,7 @@ data Request = Request
     , acceptType :: AcceptMedia
     , acceptLang :: AcceptLang
     , appState :: Map Text AppState
-    , parameters :: Map Text [Parameter]
+    , queries :: Map Text [Parameter]
     , attachments :: Map Text [Attachment]
     , reqBody :: Maybe (MediaType, LByteString)
     }
