@@ -91,7 +91,8 @@ data Request = Request
     , appState :: Map Text AppState
     , queries :: Map Text [Parameter]
     , attachments :: Map Text [Attachment]
-    , reqBody :: Maybe (MediaType, LByteString)
+    , requestBody :: Maybe (MediaType, LByteString)
+    , requestData :: Vault
     }
 
 {-| A Neptune 'Response' is an abstraction involving only RESTful response metadata and body.

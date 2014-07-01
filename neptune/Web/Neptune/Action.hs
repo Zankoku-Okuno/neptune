@@ -22,7 +22,7 @@ instance DatumMonad ActionM where
 
 parseBody :: [(MediaType, LByteString -> ActionM a)] -> ActionM a
 parseBody parsers = do
-    m_body <- reqBody . hRequest <$> Action get
+    m_body <- requestBody . hRequest <$> Action get
     (mimetype, content) <- case m_body of
         Nothing -> raise $ BadContent $ fst <$> parsers
         Just x -> return x

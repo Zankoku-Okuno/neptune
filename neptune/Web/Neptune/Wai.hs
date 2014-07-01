@@ -11,13 +11,29 @@ import qualified Data.Text as T
 import qualified Data.Text.Lazy as LT
 
 import qualified Data.Map as Map
+import qualified Data.Vault.Lazy as Vault
 
 import qualified Network.Wai as Wai
 import qualified Network.Wai.Parse as Wai
 import qualified Network.HTTP.Types as Wai
 import qualified Network.HTTP.Media as Wai
 import qualified Web.Cookie as Wai
+import qualified Network.Wai.Handler.Warp as Warp
 
+
+serveWai :: NeptuneState -> Wai.Application
+serveWai neptune = waiApp
+    where
+    neptuneApp = serve neptune
+    toWai = waiFromNeptune (nErrorHandlers neptune)
+    waiApp waiRequest respond = do
+        request <- waiToNeptune waiRequest
+        response <- neptuneApp request
+        let waiResponse = toWai (acceptType request) response
+        respond waiResponse
+
+quickNeptune :: Neptune -> IO ()
+quickNeptune = Warp.run 8080 . serveWai . buildNeptune "http://localhost:8080" Vault.empty
 
 formatURI :: Location -> ByteString
 formatURI (domain, path, query) = encode domain <> "/" <> raw_path <> raw_query
@@ -32,7 +48,7 @@ formatURI (domain, path, query) = encode domain <> "/" <> raw_path <> raw_query
 
 waiToNeptune :: Wai.Request -> IO Request
 waiToNeptune r = do
-    (raw_query, raw_files, reqBody) <- parseBody
+    (raw_query, raw_files, body) <- parseBody
     return $ Request
         { resource = Wai.pathInfo r
         , verb = Wai.requestMethod r
@@ -41,7 +57,8 @@ waiToNeptune r = do
         , appState = appState
         , queries = mkMap raw_query
         , attachments = mkMap raw_files
-        , reqBody = reqBody
+        , requestBody = body
+        , requestData = Wai.vault r
         }
     where
     headers = Wai.requestHeaders r
@@ -130,42 +147,4 @@ negotiateError empty accept headers formats =
     case negotiate accept formats of
         Nothing -> (headers, empty)
         Just (ct, body) -> (("Content-Type", (fromString . show) ct) : headers, body)
-
-
-serveWai :: Vault -> Neptune -> Wai.Application
-serveWai config neptune = app --FIXME make sure exceptions get turned into http500
-    where
-    builtNeptune = buildNeptune "localhost:8080" config neptune
-    app waiRequest respond = do
-        request <- waiToNeptune waiRequest
-        let toWai = waiFromNeptune (nErrorHandlers builtNeptune) (acceptType request)
-        response <- handleResult toWai $ do
-            let routingState = RS { rRequest = request
-                                  , rPath = resource request
-                                  , rData = Wai.vault waiRequest
-                                  , rNeptune = builtNeptune
-                                  }
-            m_route <- runRoutesM $ evalHandlers routingState (nHandlers builtNeptune)
-            (vault, action) <- case m_route of
-                Left [] -> raise BadResource
-                Left allowed -> raise $ BadVerb allowed
-                Right route -> return route
-            let handlingState = HS { hRequest = request
-                                   , hData = vault
-                                   , hResponse = def
-                                   , hNeptune = builtNeptune
-                                   }
-            (formats, state) <- runActionM handlingState action
-            let acceptable = fst <$> formats
-            (mimetype, format) <- maybe (raise $ BadAccept acceptable) return $
-                negotiate (acceptType request) formats
-            let state' = state { hResponse = (hResponse state) {mimetype = Just mimetype} }
-            body <- runFormatM state' format
-            return . toWai $ (hResponse state') { body = body }
-        respond response
-    handleResult :: (Response -> Wai.Response) -> ResultT IO Wai.Response -> IO Wai.Response
-    handleResult toWai x = runResultT x >>= \res -> case res of
-        Normal x' -> return x'
-        Alternate response -> return $ toWai response
-
 

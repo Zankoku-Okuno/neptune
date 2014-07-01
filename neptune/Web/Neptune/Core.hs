@@ -8,6 +8,9 @@ module Web.Neptune.Core (
     , buildSubNeptune
     , NeptuneState(..)
     , ErrorHandlers(..)
+    -- ** Serving
+    , serve
+    , runPipeline
     -- * Result Monad
     , Result(..)
     , ResultT(..)
@@ -418,4 +421,40 @@ reverseUrl s eid args query = do
     return (domain, path, Map.fromList query)
 
 
+{-| Turn a compiled Neptune monad ('buildNeptune') into a real application server.
+
+    In combination with 'buildNeptune' and custom to/fromX functions, it should be
+    straightforward to serve a Neptune application over any suitable protocol.
+-}
+serve :: NeptuneState -> Application
+serve neptune = app
+    where
+    app request = runPipeline $ do
+        let routingState = RS { rRequest = request
+                              , rPath = resource request
+                              , rData = requestData request
+                              , rNeptune = neptune
+                              }
+        m_route <- runRoutesM $ evalHandlers routingState (nHandlers neptune)
+        (vault, action) <- case m_route of
+            Left [] -> raise BadResource
+            Left allowed -> raise $ BadVerb allowed
+            Right route -> return route
+        let handlingState = HS { hRequest = request
+                               , hData = vault
+                               , hResponse = def
+                               , hNeptune = neptune
+                               }
+        (formats, state) <- runActionM handlingState action
+        let acceptable = fst <$> formats
+        (mimetype, format) <- maybe (raise $ BadAccept acceptable) return $
+            negotiate (acceptType request) formats
+        let state' = state { hResponse = (hResponse state) {mimetype = Just mimetype} }
+        body <- runFormatM state' format
+        return $ (hResponse state') { body = body }
+
+{-| Unwrap the end of the request processing pipeline, whether it exits normally or early. -}
+runPipeline :: ResultT IO Response -> IO Response
+runPipeline x = runResultT x >>= \res ->
+    return $ case res of { Normal x -> x; Alternate x -> x }
 
