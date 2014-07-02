@@ -1,3 +1,4 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Web.Neptune.Action (
       DatumMonad(datum)
     , parseBody
@@ -6,6 +7,10 @@ module Web.Neptune.Action (
     , ReverseMonad(url)
     , RequestMonad(request)
     , ConfigMonad(config)
+
+    , Formats, FormatsM
+    , format
+    , medium
     ) where
 
 import Web.Neptune.Core
@@ -61,3 +66,15 @@ instance RequestMonad ActionM where
 
 instance ConfigMonad ActionM where
     config key = Vault.lookup key . nConfig . hNeptune <$> Action get
+
+
+newtype FormatsM a = Formats { unFormats :: State [(MediaType, Format)] a }
+    deriving(Functor, Applicative, Monad)
+type Formats = FormatsM ()
+
+format :: Formats -> Action
+format = return . flip execState [] . unFormats
+
+medium :: MediaType -> Format -> Formats
+medium mt f = Formats $ modify (++ [(mt, f)])
+
