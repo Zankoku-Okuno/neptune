@@ -3,10 +3,14 @@ module Web.Neptune.Format (
     , RequestMonad(request, requests, query, queryAll)
     , ReverseMonad(url)
     , ConfigMonad(config)
+    , lbs, bytes, text, encode
     ) where
 
 import Web.Neptune.Util
 import Web.Neptune.Core
+
+import Data.ByteString.Lazy (toStrict, fromStrict)
+import Data.Text.Encoding
 
 import qualified Data.Vault.Lazy as Vault
 import Control.Monad.Reader
@@ -28,3 +32,16 @@ instance ReverseMonad FormatM where
         case reverseUrl s eid args query of
             Nothing -> raise $ NoUrlReverse eid args
             Just res -> return res
+
+lbs :: LByteString -> Format
+lbs = return . LBSResponse
+
+bytes :: ByteString -> Format
+bytes = lbs . fromStrict
+
+text :: Text -> Format
+text = bytes . encodeUtf8
+
+encode :: (Text -> ByteString) -> Text -> Format
+encode codec text = bytes $ codec text
+
