@@ -1,4 +1,4 @@
-module Web.Neptune.AltResponse (
+module Web.Neptune.Escape (
       handleBadContent
     , handleBadResource
     , handleBadVerb
@@ -10,7 +10,6 @@ module Web.Neptune.AltResponse (
     , handleInternalError
     ) where
 
-import Web.Neptune.Util
 import Web.Neptune.Core
 
 import Control.Monad.State

@@ -35,13 +35,14 @@ cabal-version:       >=1.8
 
 library
   exposed-modules:     Web.Neptune,
-                       Web.Neptune.Util,
                        Web.Neptune.Types,
-                       Web.Neptune.Core,
                        Web.Neptune.Route,
                        Web.Neptune.Action,
                        Web.Neptune.Format,
-                       Web.Neptune.AltResponse,
+                       Web.Neptune.Escape,
+                       Web.Neptune.Core,
+                       Web.Neptune.Core.Util,
+                       Web.Neptune.Core.Types,
                        Web.Neptune.Wai
   -- other-modules:       
   build-depends:       base ==4.6.*,

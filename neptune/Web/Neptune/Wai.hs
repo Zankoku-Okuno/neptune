@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Web.Neptune.Wai where
 
-import Web.Neptune.Util
+import Web.Neptune
 import Web.Neptune.Core
 
 import Numeric (showHex)

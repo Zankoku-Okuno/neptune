@@ -24,7 +24,6 @@ module Web.Neptune.Route (
     , setDomain
     ) where
 
-import Web.Neptune.Util
 import Web.Neptune.Core
 
 import Data.List.Split (wordsBy)

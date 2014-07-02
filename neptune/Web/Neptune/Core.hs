@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings, GeneralizedNewtypeDeriving, RankNTypes #-}
 module Web.Neptune.Core (
-      module Web.Neptune.Types
+      module Web.Neptune.Core.Util
+    , module Web.Neptune.Core.Types
     -- * Neptune Applications
     , Neptune
     , NeptuneM(..)
@@ -8,9 +9,6 @@ module Web.Neptune.Core (
     , buildSubNeptune
     , NeptuneState(..)
     , ErrorHandlers(..)
-    -- ** Serving
-    , serve
-    , runPipeline
     -- * Result Monad
     , Result(..)
     , ResultT(..)
@@ -50,8 +48,8 @@ module Web.Neptune.Core (
     , reverseUrl
     ) where
 
-import Web.Neptune.Util
-import Web.Neptune.Types
+import Web.Neptune.Core.Util
+import Web.Neptune.Core.Types
 
 import Data.Word8
 import qualified Data.ByteString as BS
@@ -207,7 +205,7 @@ newtype RouterM a = Router { unRoute :: StateT RoutingState (MaybeT (WriterT [Ve
 
 {-| Perform a single route attempt. If the route fails, then we
     don't have to fully exit the 'RouterM' monad. Instead, we simply
-    continue to accumulate and side-effects.
+    continue to accumulate verbs and side-effects.
 -}
 runRouteM :: RoutingState
           -> RouterM a
@@ -423,40 +421,5 @@ reverseUrl s eid args query = do
     return (domain, path, Map.fromList query)
 
 
-{-| Turn a compiled Neptune monad ('buildNeptune') into a real application server.
 
-    In combination with 'buildNeptune' and custom to/fromX functions, it should be
-    straightforward to serve a Neptune application over any suitable protocol.
--}
-serve :: NeptuneState -> Application
-serve neptune = app
-    where
-    app request = runPipeline $ do
-        let routingState = RS { rRequest = request
-                              , rPath = resource request
-                              , rData = requestData request
-                              , rNeptune = neptune
-                              }
-        m_route <- runRoutesM $ evalHandlers routingState (nHandlers neptune)
-        (vault, action) <- case m_route of
-            Left [] -> raise BadResource
-            Left allowed -> raise $ BadVerb allowed
-            Right route -> return route
-        let handlingState = HS { hRequest = request
-                               , hData = vault
-                               , hResponse = def
-                               , hNeptune = neptune
-                               }
-        (formats, state) <- runActionM handlingState action
-        let acceptable = fst <$> formats
-        (mimetype, format) <- maybe (raise $ BadAccept acceptable) return $
-            negotiate (acceptType request) formats
-        let state' = state { hResponse = (hResponse state) {mimetype = Just mimetype} }
-        body <- runFormatM state' format
-        return $ (hResponse state') { body = body }
-
-{-| Unwrap the end of the request processing pipeline, whether it exits normally or early. -}
-runPipeline :: ResultT IO Response -> IO Response
-runPipeline x = runResultT x >>= \res ->
-    return $ case res of { Normal x -> x; Alternate x -> x }
 

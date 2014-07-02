@@ -6,7 +6,6 @@ module Web.Neptune.Format (
     , lbs, bytes, text, encode
     ) where
 
-import Web.Neptune.Util
 import Web.Neptune.Core
 
 import Data.ByteString.Lazy (toStrict, fromStrict)

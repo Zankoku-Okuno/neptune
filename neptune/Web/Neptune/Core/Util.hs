@@ -1,5 +1,5 @@
 {-| This module combines many common imports and adds a few extras on top of them. -}
-module Web.Neptune.Util (
+module Web.Neptune.Core.Util (
     -- * Modules
       module Data.Default
     , module Data.Time.Clock

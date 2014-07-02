@@ -8,7 +8,6 @@ module Web.Neptune.Action (
     , ConfigMonad(config)
     ) where
 
-import Web.Neptune.Util
 import Web.Neptune.Core
 
 import qualified Data.Map as Map
