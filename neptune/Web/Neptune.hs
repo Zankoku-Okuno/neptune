@@ -6,13 +6,10 @@ module Web.Neptune (
     
     , IsString(fromString)
     , ByteString, LByteString
-    , toStrict, fromStrict
     , Text, LText
-    , toStrictT, fromStrictT
     , Builder
 
     , Map, Vault, Key
-    , newKey
 
     , module Web.Neptune.Types
     , Neptune, NeptuneM
@@ -20,15 +17,10 @@ module Web.Neptune (
     , module Web.Neptune.Action
     , module Web.Neptune.Format
     , module Web.Neptune.Escape
+    , module Web.Neptune.Tools
 
     , serve
     ) where
-
-
-import System.IO.Unsafe
-import Data.ByteString.Lazy (toStrict, fromStrict)
-import qualified Data.Text.Lazy as LT
-import qualified Data.Vault.Lazy as Vault
 
 import Data.Maybe
 import Data.Monoid
@@ -42,13 +34,8 @@ import Web.Neptune.Route
 import Web.Neptune.Action
 import Web.Neptune.Format
 import Web.Neptune.Escape
+import Web.Neptune.Tools
 
-
-toStrictT = LT.toStrict
-fromStrictT = LT.fromStrict
-
-newKey :: Key a
-newKey = unsafePerformIO Vault.newKey
 
 {-| Turn a compiled Neptune monad ('buildNeptune') into a real application server.
 

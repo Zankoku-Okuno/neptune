@@ -347,28 +347,18 @@ instance Default ErrorHandlers where
 {-| Any monad from which a 'Request' can be retrieved. -}
 class Monad m => RequestMonad m where
     request :: m Request
-    
-    requests :: (Request -> a) -> m a
-    requests f = liftM f request
-    
-    queryAll :: Text -> m [Parameter]
-    queryAll key = (fromMaybe [] . Map.lookup key) `liftM` requests queries
-    
-    query :: Text -> m (Maybe Parameter)
-    query key = do
-        res <- queryAll key
-        return $ case res of
-            [] -> Nothing
-            (x:_) -> Just x
 
 {-| Any monad from which the vault may be accessed. -}
 class Monad m => DatumMonad m where
     datum :: Key a -> m (Maybe a)
+
 {-| Any monad in which URLs may be reversed. -}
 class Monad m => ReverseMonad m where
     url :: EndpointId -> Vault -> [(Text, ByteString)] -> m Location
+
 class Monad m => ConfigMonad m where
     config :: Key a -> m (Maybe a)
+
 
 instance ConfigMonad NeptuneM where
     config key = Vault.lookup key . nConfig <$> Neptune get

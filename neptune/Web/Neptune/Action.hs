@@ -4,7 +4,7 @@ module Web.Neptune.Action (
     , setCache, noCache
     , setAppState, delAppState
     , ReverseMonad(url)
-    , RequestMonad(request, requests, query, queryAll)
+    , RequestMonad(request)
     , ConfigMonad(config)
     ) where
 

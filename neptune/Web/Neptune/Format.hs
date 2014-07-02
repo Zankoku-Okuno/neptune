@@ -1,6 +1,6 @@
 module Web.Neptune.Format (
       DatumMonad(datum)
-    , RequestMonad(request, requests, query, queryAll)
+    , RequestMonad(request)
     , ReverseMonad(url)
     , ConfigMonad(config)
     , lbs, bytes, text, encode

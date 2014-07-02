@@ -15,7 +15,7 @@ module Web.Neptune.Route (
     , DatumMonad(datum)
     , setDatum
     , noMatch
-    , RequestMonad(request, requests, query, queryAll)
+    , RequestMonad(request)
     , ConfigMonad(config)
     -- low-level route reversing combinators
     , create
@@ -130,6 +130,9 @@ creates xs = Reverse . lift . modify $ \(dom, path) -> (dom, path ++ xs)
 {-| Retrives a parameter from the input. Fails if the key is not present. -}
 getArg :: Key a -> ReverseM a
 getArg key = Reverse $ lift . lift . Vault.lookup key . fst =<< ask
+
+instance DatumMonad ReverseM where
+    datum key = Reverse $ Vault.lookup key <$> asks fst
 
 
 {-| Routes can be added together piece-by-piece. -}

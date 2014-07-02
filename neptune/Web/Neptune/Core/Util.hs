@@ -4,9 +4,11 @@ module Web.Neptune.Core.Util (
       module Data.Default
     , module Data.Time.Clock
     , module Data.Maybe
+    , module Data.Either
     , module Data.Monoid
     , module Control.Applicative
     , module Control.Monad
+    , module Control.Monad.Trans
     -- * String Processing
     , Builder
     , ByteString
@@ -29,6 +31,7 @@ import Data.Time.Clock
 
 import Data.Default
 import Data.Maybe
+import Data.Either
 import Control.Monad.Maybe
 import Data.Map (Map)
 import Data.Vault.Lazy (Vault, Key)
@@ -49,6 +52,7 @@ import Data.Word8 as Word8
 import Data.Monoid
 import Control.Applicative
 import Control.Monad
+import Control.Monad.Trans
 
 
 {-| I don't like how strict and lazy text share the same name.
