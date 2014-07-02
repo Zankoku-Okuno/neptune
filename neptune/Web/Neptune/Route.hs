@@ -1,11 +1,13 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Web.Neptune.Route (
-      endpoint
+      Route, Router, RouterM, Reverse, ReverseM
+    , endpoint
     , external
     , include
     , cluster
     -- route combinators
     , zero
+    , orRoute
     , literal
     , capture
     -- low-level route matching combinators
@@ -65,6 +67,27 @@ cluster eid (R fore back) actions = Neptune $ modify $ \s -> s
 
 
 {- Below is all about builting routes. -}
+orRoute :: Route -> Route -> Route
+(R fore1 back1) `orRoute` (R fore2 back2) = R fore back
+    where
+    fore = Router $ do
+        s <- get
+        m_result1 <- lift . lift $ runRouteM s fore1
+        case m_result1 of
+            Just success -> put success
+            Nothing -> do
+                m_result2 <- lift . lift $ runRouteM s fore2
+                case m_result2 of
+                    Just success -> put success
+                    Nothing -> lift nothing
+    back = Reverse $ do
+        s <- ask
+        case runReverseM s back1 of
+            Just success -> lift $ put success
+            Nothing -> case runReverseM s back2 of
+                Just success -> lift $ put success
+                Nothing -> lift . lift $ Nothing
+
 {-| Remove the passed number of segments from the front of the remaining path.
     Fails if the remaining path is not long enough.
 -}
