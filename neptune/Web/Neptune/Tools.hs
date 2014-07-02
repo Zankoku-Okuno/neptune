@@ -60,7 +60,8 @@ query key = do
         [] -> Nothing
         (x:_) -> Just x
 
---TODO attachments
+attachment :: (RequestMonad m) => Text -> m [Attachment]
+attachment key = (fromMaybe [] . Map.lookup key) `liftM` requests attachments
 
 {- Datum monad -}
 datumOr :: (DatumMonad m) => a -> Key a -> m a
