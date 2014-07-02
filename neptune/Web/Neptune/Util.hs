@@ -21,8 +21,8 @@ module Web.Neptune.Util (
     , nothing
     , fromMaybeM
     -- * URL Codecs
-    , encodePercent
-    , decodePercent
+    --, encodePercent
+    --, decodePercent
     ) where
 
 import Data.Time.Clock

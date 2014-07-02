@@ -387,9 +387,11 @@ evalHandler s (Endpoint route method action) = do
     case result of
         Nothing -> return Nothing
         Just result ->
-            if null (rPath result) && method == verb (rRequest result)
-                then return $ Just (rData result, action)
-                else const Nothing <$> tell [method]
+            if null (rPath result)
+                then if method == verb (rRequest result)
+                        then return $ Just (rData result, action)
+                        else const Nothing <$> tell [method]
+                else return Nothing
 evalHandler s (Include route subhandlers) = do
     result <- runRouteM s route
     case result of
