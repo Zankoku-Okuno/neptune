@@ -5,7 +5,7 @@ Most web frameworks develop first by helping to solve some particular task, like
 
 As a matter of fact, I have yet to find a web framework that cannot be made more RESTful. It's not because REST is magic; it's because the framework developers are working backwards. In turn, the problems in these so-called REST frameworks leads younger developers to misunderstand REST, and the problem only grows worse.
 
-Neptune tackles the REST problem the right way. We begin from a deep understanding of the REST architectual style, both its goals and consequences for an ever-changing ecosystem of heterogenous compute nodes. At this point, we build the framework. Only after this REST core is formed do we consider the protocol- and platform-dependent utilities the application developer needs to make something useful.
+Neptune tackles the REST problem the right way. We begin from a deep understanding of the REST architectual style, both its goals and consequences for an ever-changing ecosystem of heterogenous compute nodes. Only at this point do we build the framework. Only after this REST core is formed do we consider the protocol- and platform-dependent utilities the application developer needs to make something useful.
 
 The overall goal is to create a framework that a) is easy-to-learn, b) makes it quick to build small applications and easy to evolve large ones, c) makes writing RESTful code the path of least resistance, d) is flexible in choice and evolution of both frontends and backends and allows for their graceful evolution, and e) illuminates the real requirements and benefits of the REST architectural style.
 
@@ -25,20 +25,15 @@ When you want to deploy over HTTP (or HTTPS), which admittedly is very often, yo
 Responses to Criticisms
 =======================
 
-Too Much Conceptual Overhead
-----------------------------
-Maybe so. Then again, I suppose you'd prefer goto to subroutines, or subroutines to functions (with closure), or error-codes to exceptions.
+Conceptual Overhead
+-------------------
+Maybe you think there is too much. Then again, I suppose you'd prefer goto to subroutines, or subroutines to closures, or error-codes to exceptions.
 
 The thing REST gives you is a way to easily integrate yourself with a single, vast, decentralized computer: the web. If you want to be in the web, you need a uniform interface, self-describing resources, hypermedia and content negotiation. There's no way around it.
 
 On the other hand, if you want to do something simple (serve only static html), then it's trivial to write a quick function to only allow the GET verb, the text/html mimetype, the en language, and so on. Then, when you want more, the underlying REST plumbing makes it easy to expand.
 
-UnCommon Web
-------------
-
-The main gripe against REST by these guys is that some applications are desktop-style stuff, with complex "GUI" state (read: application state) management. There are all kinds of overhead managing this GUI state on the server (data marshalling, security, state coherency).
-
-To this, REST responds: code-on-demand. For these complex tasks (like the many steps of a payment process), deliver code (esp. Javascript) to the browser. Best of both worlds: write your complex GUI in one place, leave application state on the client. And in case you're worried about not being able to write in your favorite language, there are compilers for that.
+If you don't want to integrate with other systems, be scalable to many clients, to evolve without hinderance, then go ahead and use something with "less" conceptual overhead. As long remember: you get only what you pay for.
 
 Chatty APIs
 -----------
@@ -46,3 +41,10 @@ Chatty APIs
 TODO
 
 Use caching. Create appropriate views as resources.
+
+UnCommon Web
+------------
+
+The main gripe against REST by these guys is that some applications are desktop-style stuff, with complex "GUI" state (read: application state) management. There are all kinds of overhead managing this GUI state on the server (data marshalling, security, state coherency).
+
+To this, REST responds: code-on-demand. For these complex tasks (like the many steps of a payment process), deliver code (esp. Javascript) to the browser. Best of both worlds: write your complex GUI in one place, leave application state on the client. And in case you're worried about not being able to write in your favorite language, there are compilers for that.

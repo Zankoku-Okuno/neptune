@@ -91,7 +91,10 @@ orRoute :: Route -> Route -> Route
 remaining :: Key [Text] -> Route
 remaining key = R fore back
     where
-    fore = setDatum key =<< consume =<< length . rPath <$> Router get
+    fore = do
+        l <- length . rPath <$> Router get
+        when (l < 1) noMatch
+        setDatum key =<< consume l
     back = getArg key >>= creates
 
 

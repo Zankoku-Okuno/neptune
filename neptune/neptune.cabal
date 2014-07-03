@@ -23,6 +23,9 @@ description:         Implementations of the REST architecture nearly always igno
                      the lack of Template Haskell errors eases the learning curve significatly.
                      Nevertheless, it might be nice to see a \"Template Neptune\" implementation
                      based on this framework.
+                     .
+                     There is additional documentation on <http://Zankoku-Okuno.viewdocs.io/neptune/ Viewdocs>.
+                     It includes examples, guides, and links to other Neptune-related modules.
 homepage:            github.com/Zankoku-Okuno/neptune
 license:             BSD3
 license-file:        LICENSE

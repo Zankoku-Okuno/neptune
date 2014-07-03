@@ -5,27 +5,55 @@ Neptune
 
 The most RESTful framework in existence. Written in Haskell for guaranteed quality. Oh, and it's concise, lightweight and flexible to boot.
 
+```haskell
+{-# LANGUAGE OverloadedStrings #-}
+import Web.Neptune
+import Web.Neptune.Wai
+
+main = quickNeptune $ do
+    endpoint "root" ":gerund,\0" "GET" $ do
+        gerund <- qDatumOr "risin'" "gerund"
+        format $ do
+            medium "text/plain" $
+                text $ "Valleys of Neptune is " <> gerund <> "..."
+            medium "text/html" $
+                text $ "<p>Valleys of Neptune is " <> gerund <> "...</p>"
+    endpoint "file" "file/..." "GET" $ do
+        path <- mconcat . map ("/" <>) <$> datumOr undefined pathKey
+        format $ do
+            medium "text/plain" $ text $ "Requested path: " <> path
+```
+
+Read our full documentation on [Viewdocs](http://Zankoku-Okuno.viewdocs.io/neptune/).
+
 Motivation
 ----------
 
-The more I work with web applications, the more I notice that the current web frameworks just don't cut it. Their modules are tightly coupled, or their syntax is verbose and/or unusual, or their utilities are too general to be applicable, or they fail to deliver on sweeping promises, and all of them fail to respect REST constraints at some point.
+The more I work with web applications, the more I notice that the current web frameworks just don't cut it. Their modules are tightly coupled, or their syntax is verbose and/or magical, or their utilities are too general to be applicable, or they fail to deliver on sweeping promises, and all of them fail to respect REST constraints at some point.
 
-- [x] Protocol-independent.
-- [x] Routing based on URL and verb.
+Neptune strives to deliver more. In the core, we support:
+
+- [x] Protocol-independence.
+- [x] Uniform interface built on URLs and verbs.
 - [x] Content negotiation.
 - [ ] Internationalization.
-- [x] Update application state.
-- [x] Network caching interface.
+- [x] Application state updates.
+- [x] Network caching.
 - [x] URL reversing.
 
-We can't do much to help you satisfy the hypermedia constraint in your application, or use code-on-demand. Those pieces of REST are media type dependent, and we've chosen not to tie the application developer to any set of media types. Nevertheless, URL reversing and perhaps a few tools should go a long way towards eliminating the "it's too hard" excuse.
+The core is media-type agnostic, so we can't do much there to help you satisfy the hypermedia constraint in your application, or use code-on-demand. On the other hand, some media types are very common, and should deserve our attention. We support both hypermedia and code-on-demand in:
+
+- [ ] HTML
+- [ ] JSON
+
+With these features in place, the "it's too hard" excuse is simply no longer valid. It is easy to set up a simple application with Neptune, and easy to make it grow to whatever size needed.
 
 Architecture
 ------------
 
 First off, Neptune has its own request/response data formats. To hook Neptune up to the web, you'll need to convert between Neptune and whatever network protocol. Don't worry, we've already written a way to turn a Neptune application into a Wai application.
 
-Within Neptune, there are three major stages of processing: route, action, and format. Routing, in addition to selecting an action, helps build up a Vault of parameters that can be accessed at any later point. In the action, the user should obtain the resource data and perform any analysis or shuffling. Between action and format, there's a content negotiation step. Finally, the format stage creates the body of the output. Well, that's the rough idea.
+Within Neptune, there are three major stages of processing: route, action, and format. Routing, in addition to selecting an action, helps build up a Vault of parameters that can be accessed at any later point. In the action, the user should obtain the resource data and perform any analysis or shuffling. Between action and format, there's a content negotiation step which selects out one particular format from among many. Finally, the format stage creates the body of the output. Well, that's the rough idea.
 
 In fact, language negotiation happens early, so you always have access to i18n data. Also, multiple alternate exits from the pipeline are available, such as redirects or authorization failures. The action is also responsible for updating application state and managing caching policy.
 
