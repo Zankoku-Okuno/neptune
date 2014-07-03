@@ -1,0 +1,13 @@
+language: haskell
+ghc:
+    - 7.6
+
+before_install:
+    - cabal install neptune/ --only-dependencies --enable-tests
+script:
+    - cd neptune/ && cabal configure --enable-tests && cabal build
+
+notifications:
+    email:
+        on_success: never
+        on_failure: change
