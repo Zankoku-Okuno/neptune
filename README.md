@@ -1,6 +1,8 @@
 Neptune
 =======
 
+[![Build Status](https://travis-ci.org/Zankoku-Okuno/neptune.svg?branch=master)](https://travis-ci.org/Zankoku-Okuno/neptune)
+
 The most RESTful framework in existence. Written in Haskell for guaranteed quality. Oh, and it's concise, lightweight and flexible to boot.
 
 Motivation
