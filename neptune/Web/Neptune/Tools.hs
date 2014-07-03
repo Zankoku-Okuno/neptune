@@ -1,9 +1,12 @@
-{-# LANGUAGE OverloadedStrings, TypeSynonymInstances #-}
+{-# LANGUAGE OverloadedStrings, GeneralizedNewtypeDeriving,
+             TypeSynonymInstances, FlexibleInstances #-}
 module Web.Neptune.Tools (
       toStrict
     , fromStrict
     , toStrictT
     , fromStrictT
+
+    -- TODO codecs
 
     , newKey
 
@@ -17,6 +20,11 @@ module Web.Neptune.Tools (
     , qRoute
     , qDatum
     , qDatumOr
+    , pathKey
+
+    , MkVault
+    , mkVault
+    , (===)
     ) where
 
 import Web.Neptune.Core
@@ -25,10 +33,13 @@ import Web.Neptune.Route
 import System.IO.Unsafe
 import qualified Data.ByteString as BS
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 import qualified Data.ByteString.Lazy as LBS
 import qualified Data.Text.Lazy as LT
+import qualified Data.Text.Lazy.Encoding as LT
 import qualified Data.Map as Map
 import qualified Data.Vault.Lazy as Vault
+import Control.Monad.State
 
 
 toStrict :: LByteString -> ByteString
@@ -40,6 +51,25 @@ toStrictT :: LText -> Text
 toStrictT = LT.toStrict
 fromStrictT :: Text -> LText
 fromStrictT = LT.fromStrict
+
+
+encodeUtf8 :: Text -> ByteString
+encodeUtf8 = T.encodeUtf8
+--encodePercent
+--encodeLatin1
+encodeUtf8L :: LText -> LByteString
+encodeUtf8L = LT.encodeUtf8
+--encodePercentL
+--encodeLatin1L
+
+decodeUtf8 :: ByteString -> Text
+decodeUtf8 = T.decodeUtf8
+--decodePercent
+--decodeLatin1
+decodeUtf8L :: LByteString -> LText
+decodeUtf8L = LT.decodeUtf8
+--decodePercentL
+--decodeLatin1L
 
 
 newKey :: Key a
@@ -71,6 +101,9 @@ datumOr def key = fromMaybe def `liftM` datum key
 {- Quick Data -}
 _quickKey :: Key (Map Text Text)
 _quickKey = newKey
+
+pathKey :: Key [Text]
+pathKey = newKey
 
 qRoute :: Text -> Route
 qRoute name = R fore back
@@ -104,10 +137,10 @@ instance QDatum Text where
     toQDatum = Right
 instance QDatum LText where
     toQDatum = Right . fromStrictT
---instance QDatum Text where
---    toQDatum = id
---instance QDatum Text where
---    toQDatum = id
+instance QDatum String where
+    toQDatum = Right . T.unpack
+--instance (Integral a) => QDatum a where
+--    toQDatum = STUB
 
 instance IsString Route where
     fromString str = case T.split (==',') (T.pack str) of
@@ -118,8 +151,17 @@ instance IsString Route where
         --FIXME percent-decode
         mkSeg "" = zero
         mkSeg "\0" = zero
-        mkSeg "..." = error "TODO grab rest of path, normalize, stick in a standard Key"
+        mkSeg "..." = remaining pathKey --FIXME normalize the path (remove //, /./, /../, fail if not all /../ can be removed)
         mkSeg text = case fromJust $ T.uncons text of
             (':', name) -> qRoute name
             ('^', rest) -> error "TODO: regex quick-routes"
             _ -> literal text
+
+
+newtype MkVault a = MkVault { unMkVault :: State Vault a }
+    deriving(Functor, Applicative, Monad)
+mkVault :: MkVault () -> Vault
+mkVault = flip execState Vault.empty . unMkVault
+
+(===) :: Key a -> a -> MkVault ()
+k === v = MkVault $ modify $ Vault.insert k v

@@ -10,6 +10,7 @@ module Web.Neptune.Route (
     , orRoute
     , literal
     , capture
+    , remaining
     -- low-level route matching combinators
     , consume
     , DatumMonad(datum)
@@ -86,6 +87,13 @@ orRoute :: Route -> Route -> Route
             Nothing -> case runReverseM s back2 of
                 Just success -> lift $ put success
                 Nothing -> lift . lift $ Nothing
+
+remaining :: Key [Text] -> Route
+remaining key = R fore back
+    where
+    fore = setDatum key =<< consume =<< length . rPath <$> Router get
+    back = getArg key >>= creates
+
 
 {-| Remove the passed number of segments from the front of the remaining path.
     Fails if the remaining path is not long enough.

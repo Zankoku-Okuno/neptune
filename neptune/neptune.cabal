@@ -2,7 +2,7 @@
 -- documentation, see http://haskell.org/cabal/users-guide/
 
 name:                neptune
-version:             0.0.0.0
+version:             0.0.0
 synopsis:            Plumbing for mature REST services.
 description:         Implementations of the REST architecture nearly always ignore some
                      architectural constraints. Further, I've yet to see a \"REST\" framework that
