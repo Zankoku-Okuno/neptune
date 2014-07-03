@@ -3,9 +3,8 @@ ghc:
     - 7.6
 
 before_install:
-    - cabal update
-    - cabal install --force-reinstalls cabal-meta cabal-src
-    - cabal-meta install --only-dependencies --enable-tests
+    - cd neptune/
+    - cabal install --only-dependencies --enable-tests
 script:
     - cabal-meta install --enable-tests
 
