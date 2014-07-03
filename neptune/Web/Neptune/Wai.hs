@@ -144,8 +144,8 @@ waiFromNeptune ehs accept BadPermissions = Wai.responseLBS Wai.status403 headers
     where (headers, body) = negotiateError "" accept [] (ehBadPermissions ehs)
 waiFromNeptune ehs accept (Timeout dt) = Wai.responseLBS Wai.status504 headers (f dt)
     where (headers, f) = negotiateError (const "") accept [] (ehTimeout ehs)
-waiFromNeptune ehs accept InternalError = Wai.responseLBS Wai.status500 headers body
-    where (headers, body) = negotiateError "" accept [] (ehInternalError ehs)
+waiFromNeptune ehs accept (InternalError msg) = Wai.responseLBS Wai.status500 headers (f msg)
+    where (headers, f) = negotiateError (LBS.fromStrict . encodeUtf8) accept [] (ehInternalError ehs)
 waiFromNeptune ehs accept (NoUrlReverse eid vault) = Wai.responseLBS Wai.status500 headers (f eid vault)
     where (headers, f) = negotiateError (const $ const "") accept [] (ehNoUrlReverse ehs)
 

@@ -165,3 +165,4 @@ mkVault = flip execState Vault.empty . unMkVault
 
 (===) :: Key a -> a -> MkVault ()
 k === v = MkVault $ modify $ Vault.insert k v
+

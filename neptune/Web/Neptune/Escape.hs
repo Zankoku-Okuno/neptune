@@ -1,5 +1,11 @@
 module Web.Neptune.Escape (
-      handleBadContent
+      redirect
+    , moved
+    , notFound
+    , notPermitted
+    , internalError
+    
+    , handleBadContent
     , handleBadResource
     , handleBadVerb
     , handleBadAccept
@@ -13,6 +19,23 @@ module Web.Neptune.Escape (
 import Web.Neptune.Core
 
 import Control.Monad.State
+
+
+
+redirect :: ResultMonad m => Location -> m a
+redirect = raise . flip Redirect False
+
+moved :: ResultMonad m => Location -> m a
+moved = raise . flip Redirect True
+
+notFound :: ResultMonad m => m a
+notFound = raise $ BadResource
+
+notPermitted :: ResultMonad m => m a
+notPermitted = raise $ BadPermissions
+
+internalError :: ResultMonad m => Text -> m a
+internalError = raise . InternalError
 
 
 handleBadContent :: MediaType -> ([MediaType] -> LByteString) -> Neptune
@@ -50,7 +73,7 @@ handleTimeout media format = Neptune $ modify $ \s -> s {
     nErrorHandlers = (nErrorHandlers s) {
         ehTimeout = (ehTimeout . nErrorHandlers) s ++ [(media, format)] }
     }
-handleInternalError :: MediaType -> LByteString -> Neptune
+handleInternalError :: MediaType -> (Text -> LByteString) -> Neptune
 handleInternalError media format = Neptune $ modify $ \s -> s {
     nErrorHandlers = (nErrorHandlers s) {
         ehInternalError = (ehInternalError . nErrorHandlers) s ++ [(media, format)] }

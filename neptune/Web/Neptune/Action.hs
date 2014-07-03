@@ -1,4 +1,4 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE OverloadedStrings, GeneralizedNewtypeDeriving #-}
 module Web.Neptune.Action (
       DatumMonad(datum)
     , parseBody
@@ -11,6 +11,7 @@ module Web.Neptune.Action (
     , Formats, FormatsM
     , format
     , medium
+    , formatAny
     ) where
 
 import Web.Neptune.Core
@@ -78,3 +79,5 @@ format = return . flip execState [] . unFormats
 medium :: MediaType -> Format -> Formats
 medium mt f = Formats $ modify (++ [(mt, f)])
 
+formatAny :: Format -> Action
+formatAny = format . medium "*/*"

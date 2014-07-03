@@ -87,7 +87,7 @@ data Response = Response
               | BadLanguage    
               | BadPermissions  
               | Timeout        DiffTime
-              | InternalError  
+              | InternalError  Text
               | NoUrlReverse   EndpointId Vault
               --TODO? a Debug response
 

@@ -328,7 +328,7 @@ data ErrorHandlers = EHs
     , ehBadPermissions :: [(MediaType, LByteString)]
     , ehNoUrlReverse :: [(MediaType, EndpointId -> Vault -> LByteString)]
     , ehTimeout :: [(MediaType, DiffTime -> LByteString)]
-    , ehInternalError :: [(MediaType, LByteString)]
+    , ehInternalError :: [(MediaType, Text -> LByteString)]
     }
 instance Default ErrorHandlers where
     def = EHs
