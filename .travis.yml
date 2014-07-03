@@ -2,13 +2,13 @@ language: haskell
 ghc:
     - 7.6
 
-before_install:
-    - cd neptune/
-    - cabal install --only-dependencies --enable-tests
 install:
-    - cabal install --enable-tests
+    - ( cd neptune/ && cabal install --only-dependencies --enable-tests )
 script:
-    - 
+    - ( cd neptune/ && cabal install --enable-tests )
+after_success:
+    - ( cd neptune/ && cabal haddock )
+
 
 notifications:
     email:
