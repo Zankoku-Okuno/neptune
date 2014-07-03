@@ -5,8 +5,10 @@ ghc:
 before_install:
     - cd neptune/
     - cabal install --only-dependencies --enable-tests
+install:
+    - cabal install --enable-tests
 script:
-    - cabal-meta install --enable-tests
+    - 
 
 notifications:
     email:
