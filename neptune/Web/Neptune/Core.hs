@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, GeneralizedNewtypeDeriving, RankNTypes #-}
+{-# LANGUAGE RankNTypes #-}
 module Web.Neptune.Core (
       module Web.Neptune.Core.Util
     , module Web.Neptune.Core.Types

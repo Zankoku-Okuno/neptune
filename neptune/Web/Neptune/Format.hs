@@ -4,6 +4,8 @@ module Web.Neptune.Format (
     , ReverseMonad(url)
     , ConfigMonad(config)
     , lbs, bytes, text, encode
+    , builderResponse
+    , sendfile
     ) where
 
 import Web.Neptune.Core
@@ -44,3 +46,8 @@ text = bytes . encodeUtf8
 encode :: (Text -> ByteString) -> Text -> Format
 encode codec text = bytes $ codec text
 
+builderResponse :: Builder -> Format
+builderResponse = return . BuilderResponse
+
+sendfile :: FilePath -> Format
+sendfile = return . FileResponse

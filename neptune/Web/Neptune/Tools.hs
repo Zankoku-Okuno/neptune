@@ -1,5 +1,4 @@
-{-# LANGUAGE OverloadedStrings, GeneralizedNewtypeDeriving,
-             TypeSynonymInstances, FlexibleInstances #-}
+{-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
 module Web.Neptune.Tools (
       toStrict
     , fromStrict

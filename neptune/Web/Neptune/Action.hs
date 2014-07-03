@@ -1,4 +1,3 @@
-{-# LANGUAGE OverloadedStrings, GeneralizedNewtypeDeriving #-}
 module Web.Neptune.Action (
       DatumMonad(datum)
     , parseBody

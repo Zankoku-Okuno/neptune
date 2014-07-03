@@ -1,4 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
 module Web.Neptune.Wai where
 
 import Web.Neptune

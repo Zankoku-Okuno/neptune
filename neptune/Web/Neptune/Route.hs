@@ -1,4 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
 module Web.Neptune.Route (
       Route, Router, RouterM, Reverse, ReverseM
     , endpoint

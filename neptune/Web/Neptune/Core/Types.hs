@@ -1,4 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
 module Web.Neptune.Core.Types where
 
 import Web.Neptune.Core.Util

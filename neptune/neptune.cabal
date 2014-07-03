@@ -3,6 +3,7 @@
 
 name:                neptune
 version:             0.0.0
+stability:           experimental
 synopsis:            Plumbing for mature REST services.
 description:         Implementations of the REST architecture nearly always ignore some
                      architectural constraints. Further, I've yet to see a \"REST\" framework that
@@ -26,7 +27,8 @@ description:         Implementations of the REST architecture nearly always igno
                      .
                      There is additional documentation on <http://Zankoku-Okuno.viewdocs.io/neptune/ Viewdocs>.
                      It includes examples, guides, and links to other Neptune-related modules.
-homepage:            github.com/Zankoku-Okuno/neptune
+homepage:            https://github.com/Zankoku-Okuno/neptune
+bug-reports:         https://github.com/Zankoku-Okuno/neptune/issues
 license:             BSD3
 license-file:        LICENSE
 author:              Zankoku Okuno
@@ -37,6 +39,7 @@ build-type:          Simple
 cabal-version:       >=1.8
 
 library
+  extensions:          OverloadedStrings, GeneralizedNewtypeDeriving
   exposed-modules:     Web.Neptune,
                        Web.Neptune.Types,
                        Web.Neptune.Route,
