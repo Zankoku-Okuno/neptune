@@ -22,6 +22,8 @@ module Web.Neptune.Core.Util (
     -- * Maybe Monad
     , nothing
     , fromMaybeM
+    -- * Path Manipulation
+    , normalizePath
     ) where
 
 import Data.Time.Clock
@@ -82,5 +84,13 @@ softInsert key val map =
         else M.insert key val map
 
 
-
+normalizePath :: [Text] -> [Text]
+normalizePath = go []
+    where
+    go acc [] = reverse acc
+    go acc ("":rest) = go acc rest
+    go acc (".":rest) = go acc rest
+    go [] ("..":rest) = go [] rest
+    go (_:acc) ("..":rest) = go acc rest
+    go acc (seg:rest) = go (seg:acc) rest
 

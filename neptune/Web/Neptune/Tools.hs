@@ -5,13 +5,16 @@ module Web.Neptune.Tools (
     , toStrictT
     , fromStrictT
 
-    -- TODO codecs
     , encodeUtf8
     , encodeUtf8L
+    , encodeLatin1
+    , encodeLatin1L
     , encodePercent
     , encodePercentL
     , decodeUtf8
     , decodeUtf8L
+    , decodeLatin1
+    , decodeLatin1L
     , decodePercent
     , decodePercentL
 
@@ -48,12 +51,14 @@ import System.IO.Unsafe
 import Data.Word8
 import Data.Char
 import Numeric (showHex)
+
 import qualified Data.ByteString as BS
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.ByteString.Lazy as LBS
 import qualified Data.Text.Lazy as LT
 import qualified Data.Text.Lazy.Encoding as LT
+
 import qualified Data.Map as Map
 import qualified Data.Vault.Lazy as Vault
 import Control.Monad.State
@@ -76,7 +81,11 @@ encodeUtf8 = T.encodeUtf8
 encodePercent :: Text -> ByteString
 encodePercent = BS.pack . concatMap encByte . BS.unpack . encodeUtf8
     
---encodeLatin1
+encodeLatin1 :: Text -> ByteString
+encodeLatin1 = BS.pack . map encByte . T.unpack
+    where
+    encByte c | c >= chr 256 = error "Text cannot be encoded in Latin-1."
+    encByte c = fromIntegral $ fromEnum c
 
 encodeUtf8L :: LText -> LByteString
 encodeUtf8L = LT.encodeUtf8
@@ -84,7 +93,11 @@ encodeUtf8L = LT.encodeUtf8
 encodePercentL :: LText -> LByteString
 encodePercentL = LBS.pack . concatMap encByte . LBS.unpack . encodeUtf8L
 
---encodeLatin1L
+encodeLatin1L :: LText -> LByteString
+encodeLatin1L = LBS.pack . map encByte . LT.unpack
+    where
+    encByte c | c >= chr 256 = error "Text cannot be encoded in Latin-1."
+    encByte c = fromIntegral $ fromEnum c
 
 decodeUtf8 :: ByteString -> Text
 decodeUtf8 = T.decodeUtf8
@@ -92,7 +105,8 @@ decodeUtf8 = T.decodeUtf8
 decodePercent :: ByteString -> Text
 decodePercent = decodeUtf8 . BS.pack . reverse . decByte [] . BS.unpack
     
---decodeLatin1
+decodeLatin1 :: ByteString -> Text
+decodeLatin1 = T.pack . map (chr . fromIntegral) . BS.unpack
 
 decodeUtf8L :: LByteString -> LText
 decodeUtf8L = LT.decodeUtf8
@@ -100,7 +114,8 @@ decodeUtf8L = LT.decodeUtf8
 decodePercentL :: LByteString -> LText
 decodePercentL = decodeUtf8L . LBS.pack . reverse . decByte [] . LBS.unpack
 
---decodeLatin1L
+decodeLatin1L :: LByteString -> LText
+decodeLatin1L = LT.pack . map (chr . fromIntegral) . LBS.unpack
 
 encByte :: Word8 -> [Word8]
 encByte c | _0 <= c && c <= _9 = [c]
@@ -237,7 +252,7 @@ instance IsString Route where
             [one] -> mkRoute one
             many -> foldl1 orRoute (map mkRoute many)
         where
-        mkRoute = mconcat . map mkSeg . T.split (=='/')
+        mkRoute = mconcat . map mkSeg . normalizePath . T.split (=='/')
         --FIXME percent-decode
         mkSeg "" = zero
         mkSeg "\0" = zero

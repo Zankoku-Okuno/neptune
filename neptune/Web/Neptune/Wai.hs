@@ -56,7 +56,7 @@ waiToNeptune :: Wai.Request -> IO Request
 waiToNeptune r = do
     (raw_query, raw_files, body) <- parseBody
     return $ Request
-        { resource = Wai.pathInfo r
+        { resource = normalizePath $ Wai.pathInfo r
         , verb = Wai.requestMethod r
         , acceptType = acceptType
         , acceptLang = error "toNeptune: get acceptLang" --STUB

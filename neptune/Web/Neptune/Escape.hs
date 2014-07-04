@@ -13,7 +13,6 @@ module Web.Neptune.Escape (
     , handleBadAccept
     , handleBadLanguage
     , handleBadPermissions
-    , handleNoUrlReverse
     , handleTimeout
     , handleInternalError
     ) where
@@ -84,9 +83,4 @@ handleInternalError :: MediaType -> (Text -> LByteString) -> Neptune
 handleInternalError media format = Neptune $ modify $ \s -> s {
     nErrorHandlers = (nErrorHandlers s) {
         ehInternalError = (ehInternalError . nErrorHandlers) s ++ [(media, format)] }
-    }
-handleNoUrlReverse :: MediaType -> (EndpointId -> Vault -> LByteString) -> Neptune
-handleNoUrlReverse media format = Neptune $ modify $ \s -> s {
-    nErrorHandlers = (nErrorHandlers s) {
-        ehNoUrlReverse = (ehNoUrlReverse . nErrorHandlers) s ++ [(media, format)] }
     }

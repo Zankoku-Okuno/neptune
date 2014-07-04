@@ -326,7 +326,6 @@ data ErrorHandlers = EHs
     , ehBadAccept :: [(MediaType, [MediaType] -> LByteString)]
     , ehBadLanguage :: [(MediaType, LByteString)]
     , ehBadPermissions :: [(MediaType, LByteString)]
-    , ehNoUrlReverse :: [(MediaType, EndpointId -> Vault -> LByteString)]
     , ehTimeout :: [(MediaType, DiffTime -> LByteString)]
     , ehInternalError :: [(MediaType, Text -> LByteString)]
     }
@@ -338,7 +337,6 @@ instance Default ErrorHandlers where
         , ehBadAccept = []
         , ehBadLanguage = []
         , ehBadPermissions = []
-        , ehNoUrlReverse = []
         , ehTimeout = []
         , ehInternalError = []
         }
