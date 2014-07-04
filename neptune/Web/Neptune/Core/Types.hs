@@ -77,7 +77,7 @@ data Response = Response
     , updateAppState :: Map Text (Maybe (AppState, Maybe Expiry))
     , body :: ResponseBody
     }
-              | EmptyResponse  Response Text --the Text is like an error code
+              | CustomResponse Text Vault
               | Redirect       RedirectReason Location
               | BadContent     [MediaType] -- the types the app can consume
               | BadResource    
@@ -87,8 +87,6 @@ data Response = Response
               | BadPermissions  
               | Timeout        DiffTime
               | InternalError  Text
-              | NoUrlReverse   EndpointId Vault
-              --TODO? a Debug response
 
 data ResponseBody = LBSResponse LByteString
                   | BuilderResponse Builder

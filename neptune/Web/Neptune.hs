@@ -3,6 +3,7 @@ module Web.Neptune (
     , module Data.Monoid
     , module Control.Applicative
     , module Control.Monad
+    , module Control.Monad.Trans
     
     , IsString(fromString)
     , ByteString, LByteString
@@ -26,6 +27,7 @@ import Data.Maybe
 import Data.Monoid
 import Control.Applicative
 import Control.Monad
+import Control.Monad.Trans
 
 import Web.Neptune.Core
 

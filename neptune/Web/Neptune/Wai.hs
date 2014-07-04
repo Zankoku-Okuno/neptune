@@ -10,7 +10,6 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as LBS
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as LT
-import Data.Text.Encoding
 
 import qualified Data.Map as Map
 import qualified Data.Vault.Lazy as Vault
@@ -117,7 +116,14 @@ waiFromNeptune _ _ r@(Response {}) = case body r of
             name <> "=" <> value
         mkCookie name (Just (value, Just maxage)) =
             name <> "=" <> value <> "; Max-Age=" <> fromString (show maxage) <> "; HttpOnly"
-waiFromNeptune ehs accept (EmptyResponse response text) = undefined --STUB
+waiFromNeptune ehs accept (CustomResponse "Awesome" vault) = Wai.responseLBS status headers ""
+    where
+    status = (Wai.Status 137 "Awesome")
+    headers = case Vault.lookup _awesomeKey vault of
+                Nothing -> []
+                Just sauce -> [("Your-sauce-is", sauce)]
+waiFromNeptune ehs accept (CustomResponse cause vault) =
+    waiFromNeptune ehs accept (InternalError $ "Error: Cannot send response type: " <> cause)
 waiFromNeptune ehs accept (Redirect reason loc) = Wai.responseLBS status headers ""
     where
     headers = [("Location", formatURI loc)]
@@ -147,8 +153,6 @@ waiFromNeptune ehs accept (Timeout dt) = Wai.responseLBS Wai.status504 headers (
     where (headers, f) = negotiateError (const "") accept [] (ehTimeout ehs)
 waiFromNeptune ehs accept (InternalError msg) = Wai.responseLBS Wai.status500 headers (f msg)
     where (headers, f) = negotiateError (LBS.fromStrict . encodeUtf8) accept [] (ehInternalError ehs)
-waiFromNeptune ehs accept (NoUrlReverse eid vault) = Wai.responseLBS Wai.status500 headers (f eid vault)
-    where (headers, f) = negotiateError (const $ const "") accept [] (ehNoUrlReverse ehs)
 
 negotiateError :: a -> AcceptMedia
                -> [Wai.Header] -> [(MediaType, a)]
@@ -159,6 +163,8 @@ negotiateError empty accept headers formats =
         Just (ct, body) -> (("Content-Type", (fromString . show) ct) : headers, body)
 
 
+_awesomeKey :: Key ByteString
+_awesomeKey = newKey
 
 
 

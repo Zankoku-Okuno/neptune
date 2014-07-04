@@ -14,6 +14,7 @@ module Web.Neptune.Action (
     ) where
 
 import Web.Neptune.Core
+import Web.Neptune.Escape
 
 import qualified Data.Map as Map
 import qualified Data.Vault.Lazy as Vault
@@ -58,7 +59,7 @@ instance ReverseMonad ActionM where
     url eid args query = do
         s <- hNeptune <$> Action get
         case reverseUrl s eid args query of
-            Nothing -> raise $ NoUrlReverse eid args
+            Nothing -> internalError $ "Error: could not reverse url " <> eid
             Just res -> return res
 
 instance RequestMonad ActionM where

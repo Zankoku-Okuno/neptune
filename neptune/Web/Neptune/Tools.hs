@@ -6,6 +6,10 @@ module Web.Neptune.Tools (
     , fromStrictT
 
     -- TODO codecs
+    , encodeUtf8
+    , encodeUtf8L
+    , decodeUtf8
+    , decodeUtf8L
 
     , newKey
 

@@ -9,6 +9,7 @@ module Web.Neptune.Format (
     ) where
 
 import Web.Neptune.Core
+import Web.Neptune.Escape
 
 import Data.ByteString.Lazy (toStrict, fromStrict)
 import Data.Text.Encoding
@@ -31,7 +32,7 @@ instance ReverseMonad FormatM where
     url eid args query = do
         s <- Format $ asks hNeptune
         case reverseUrl s eid args query of
-            Nothing -> raise $ NoUrlReverse eid args
+            Nothing -> internalError $ "Error: could not reverse url " <> eid
             Just res -> return res
 
 lbs :: LByteString -> Format

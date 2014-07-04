@@ -62,7 +62,7 @@ library
                        containers == 0.5.*,
                        data-default ==0.5.*,
                        vault ==0.3.*,
-                       mtl ==2.1.*,
+                       mtl,
                        MaybeT ==0.1.*,
                        wai ==3.*,
                        wai-extra ==3.0.*,

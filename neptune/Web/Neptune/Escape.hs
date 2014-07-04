@@ -5,6 +5,7 @@ module Web.Neptune.Escape (
     , notFound
     , notPermitted
     , internalError
+    , customResponse
     
     , handleBadContent
     , handleBadResource
@@ -21,6 +22,9 @@ import Web.Neptune.Core
 
 import Control.Monad.State
 
+
+customResponse :: ResultMonad m => Text -> Vault -> m a
+customResponse cause = raise . CustomResponse cause
 
 created :: ResultMonad m => Location -> m a
 created = raise . Redirect Created
