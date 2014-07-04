@@ -1,6 +1,7 @@
 module Web.Neptune.Escape (
       redirect
     , moved
+    , created
     , notFound
     , notPermitted
     , internalError
@@ -21,12 +22,14 @@ import Web.Neptune.Core
 import Control.Monad.State
 
 
+created :: ResultMonad m => Location -> m a
+created = raise . Redirect Created
 
 redirect :: ResultMonad m => Location -> m a
-redirect = raise . flip Redirect False
+redirect = raise . Redirect Temporary
 
 moved :: ResultMonad m => Location -> m a
-moved = raise . flip Redirect True
+moved = raise . Redirect Moved
 
 notFound :: ResultMonad m => m a
 notFound = raise $ BadResource

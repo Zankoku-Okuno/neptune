@@ -78,7 +78,7 @@ data Response = Response
     , body :: ResponseBody
     }
               | EmptyResponse  Response Text --the Text is like an error code
-              | Redirect       Location Bool --the Bool means it is permanent
+              | Redirect       RedirectReason Location
               | BadContent     [MediaType] -- the types the app can consume
               | BadResource    
               | BadVerb        [Verb]
@@ -93,6 +93,9 @@ data Response = Response
 data ResponseBody = LBSResponse LByteString
                   | BuilderResponse Builder
                   | FileResponse FilePath
+
+data RedirectReason = Created | Moved | Temporary
+
 
 instance IsString ResponseBody where
     fromString = LBSResponse . fromString

@@ -118,11 +118,13 @@ waiFromNeptune _ _ r@(Response {}) = case body r of
         mkCookie name (Just (value, Just maxage)) =
             name <> "=" <> value <> "; Max-Age=" <> fromString (show maxage) <> "; HttpOnly"
 waiFromNeptune ehs accept (EmptyResponse response text) = undefined --STUB
-waiFromNeptune ehs accept (Redirect loc True) = Wai.responseLBS Wai.status301 headers ""
-    where headers = [("Location", formatURI loc)]
-waiFromNeptune ehs accept (Redirect loc False) = Wai.responseLBS Wai.status307 headers ""
-    where headers = [("Location", formatURI loc)]
-
+waiFromNeptune ehs accept (Redirect reason loc) = Wai.responseLBS status headers ""
+    where
+    headers = [("Location", formatURI loc)]
+    status = case reason of
+        Created -> Wai.status201
+        Moved -> Wai.status301
+        Temporary -> Wai.status307
 
 waiFromNeptune ehs accept (BadContent allowed) = Wai.responseLBS Wai.status415 headers (f allowed)
     where (headers, f) = negotiateError (const "") accept
