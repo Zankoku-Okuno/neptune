@@ -35,7 +35,7 @@ serveWai neptune = waiApp
 
 quickNeptune :: Neptune -> IO ()
 quickNeptune neptune = do
-    putStrLn "Running Neptune..."
+    putStrLn "Running Neptune (port 8080)..."
     putStrLn "(Ctrl-C to quit)"
     Warp.run 8080 . serveWai . buildNeptune "http://localhost:8080" Vault.empty $ neptune
 

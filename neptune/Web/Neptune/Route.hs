@@ -36,8 +36,8 @@ import Control.Monad.Reader
 import Control.Monad.State
 
 {- These are for adding routes to a neptune. -}
-endpoint :: EndpointId -> Route -> Verb -> Action -> Neptune
-endpoint eid (R fore back) m a = Neptune $ modify $ \s -> s
+endpoint :: EndpointId -> Verb -> Route -> Action -> Neptune
+endpoint eid m (R fore back) a = Neptune $ modify $ \s -> s
     { nHandlers = nHandlers s ++ [Endpoint fore m a]
     , nReversers = softInsert eid back (nReversers s)
     }
