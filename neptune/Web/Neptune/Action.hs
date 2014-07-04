@@ -10,7 +10,7 @@ module Web.Neptune.Action (
     , Formats, FormatsM
     , format
     , medium
-    , formatAny
+    , anyFormat
     ) where
 
 import Web.Neptune.Core
@@ -78,5 +78,5 @@ format = return . flip execState [] . unFormats
 medium :: MediaType -> Format -> Formats
 medium mt f = Formats $ modify (++ [(mt, f)])
 
-formatAny :: Format -> Action
-formatAny = format . medium "*/*"
+anyFormat :: Format -> Action
+anyFormat = format . medium "*/*"
