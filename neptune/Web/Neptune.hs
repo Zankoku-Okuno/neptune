@@ -65,7 +65,9 @@ serve neptune = app
         let acceptable = fst <$> formats
         (mimetype, format) <- maybe (raise $ BadAccept acceptable) return $
             negotiate (acceptType request) formats
-        let state' = state { hResponse = (hResponse state) {mimetype = Just mimetype} }
+        let state' = if mimetype == "*/*"
+                        then state
+                        else state { hResponse = (hResponse state) {mimetype = Just mimetype} }
         body <- runFormatM state' format
         return $ (hResponse state') { body = body }
     runPipeline :: ResultT IO Response -> IO Response
