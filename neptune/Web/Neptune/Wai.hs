@@ -44,12 +44,13 @@ quickNeptune neptune = do
 
 
 formatURI :: Location -> ByteString
-formatURI (domain, path, query) = encodePercent domain <> "/" <> raw_path <> raw_query
+formatURI (domain, path, query) = encodeUtf8 domain <> raw_path <> raw_query
     where
-    raw_path = BS.intercalate "/" (encodePercent <$> path)
+    raw_path = BS.concat $ ("/" <>) . encodePercent <$> path
     raw_query = case Map.toList query of
         [] -> ""
-        query -> undefined --STUB
+        query -> "?" <> BS.intercalate "&" (formatParam <$> query)
+    formatParam (k, v) = encodePercent k <> "=" <> v
 
 
 waiToNeptune :: Wai.Request -> IO Request
@@ -98,7 +99,7 @@ waiFromNeptune :: ErrorHandlers -> AcceptMedia -> Response -> Wai.Response
 waiFromNeptune _ _ r@(Response {}) = case body r of
         LBSResponse body -> Wai.responseLBS Wai.status200 headers body
         BuilderResponse body -> Wai.responseBuilder Wai.status200 headers body
-        FileResponse path -> Wai.responseFile Wai.sttus200 headers path Nothing
+        FileResponse path -> Wai.responseFile Wai.status200 headers path Nothing
     where
     headers = mimeHeader ++ langHeader ++ cacheHeader ++ cookies
     mimeHeader = case mimetype r of

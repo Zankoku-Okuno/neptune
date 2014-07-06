@@ -1,5 +1,6 @@
 module Web.Neptune.Format (
-      DatumMonad(datum)
+      FormatM, Format
+    , DatumMonad(datum)
     , RequestMonad(request)
     , ReverseMonad(url)
     , ConfigMonad(config)

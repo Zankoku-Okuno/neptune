@@ -1,5 +1,6 @@
 module Web.Neptune.Action (
-      DatumMonad(datum)
+      Action, ActionM
+    , DatumMonad(datum)
     , parseBody
     , setCache, noCache
     , setAppState, delAppState
