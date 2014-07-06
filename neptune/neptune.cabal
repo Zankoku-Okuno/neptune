@@ -46,10 +46,13 @@ library
                        Web.Neptune.Action,
                        Web.Neptune.Format,
                        Web.Neptune.Escape,
+                       Web.Neptune.Encoding,
+                       Web.Neptune.Url,
                        Web.Neptune.Tools,
                        Web.Neptune.Core,
-                       Web.Neptune.Core.Util,
                        Web.Neptune.Core.Types,
+                       Web.Neptune.Core.Util,
+                       Web.Neptune.Core.Url,
                        Web.Neptune.Wai
   -- other-modules:       
   build-depends:       base ==4.6.*,

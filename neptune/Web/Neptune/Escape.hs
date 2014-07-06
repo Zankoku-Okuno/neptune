@@ -25,13 +25,13 @@ import Control.Monad.State
 customResponse :: ResultMonad m => Text -> Vault -> m a
 customResponse cause = raise . CustomResponse cause
 
-created :: ResultMonad m => Location -> m a
+created :: ResultMonad m => URL -> m a
 created = raise . Redirect Created
 
-redirect :: ResultMonad m => Location -> m a
+redirect :: ResultMonad m => URL -> m a
 redirect = raise . Redirect Temporary
 
-moved :: ResultMonad m => Location -> m a
+moved :: ResultMonad m => URL -> m a
 moved = raise . Redirect Moved
 
 notFound :: ResultMonad m => m a

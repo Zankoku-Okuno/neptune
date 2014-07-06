@@ -11,12 +11,20 @@ import qualified Network.HTTP.Media as Wai
 
 -- | Identifier used to select a route during URL reversal.
 type EndpointId = Text
--- | A domain name (optionally including protocol, port, and any leading path info).
-type Domain = Text
+type Scheme = ByteString -- /\w[\w\d+.-]*/i
+type Host = ByteString -- *( unreserved / pct-encoded / sub-delims )
 -- | Parsed URL path
 type PathInfo = [Text]
--- | URIs
-type Location = (Domain, PathInfo, Map Text Parameter)
+
+data URL = URL
+  { _scheme :: Scheme
+  , _user :: Maybe ByteString
+  , _host :: Host
+  , _port :: Maybe Int
+  , _path :: PathInfo
+  , _query :: Map Text [Parameter]
+  , _fragment :: Maybe Text --roughly same as a path segment
+  }
 
 -- | Verbs
 type Verb = ByteString
@@ -78,7 +86,7 @@ data Response = Response
     , body :: ResponseBody
     }
               | CustomResponse Text Vault
-              | Redirect       RedirectReason Location
+              | Redirect       RedirectReason URL
               | BadContent     [MediaType] -- the types the app can consume
               | BadResource    
               | BadVerb        [Verb]

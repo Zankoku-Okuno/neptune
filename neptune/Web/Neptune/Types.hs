@@ -8,8 +8,9 @@ module Web.Neptune.Types (
     -- * Basic Types
     -- ** URIs
     , EndpointId
-    , Location
-    , Domain
+    , URL
+    , Scheme
+    , Host
     , PathInfo
     -- ** Verbs
     , Verb

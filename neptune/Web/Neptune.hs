@@ -18,6 +18,7 @@ module Web.Neptune (
     , module Web.Neptune.Action
     , module Web.Neptune.Format
     , module Web.Neptune.Escape
+    , module Web.Neptune.Url
     , module Web.Neptune.Tools
 
     , serve
@@ -36,6 +37,7 @@ import Web.Neptune.Route
 import Web.Neptune.Action
 import Web.Neptune.Format
 import Web.Neptune.Escape
+import Web.Neptune.Url
 import Web.Neptune.Tools
 
 

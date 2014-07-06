@@ -2,6 +2,7 @@
 module Web.Neptune.Core (
       module Web.Neptune.Core.Util
     , module Web.Neptune.Core.Types
+    , module Web.Neptune.Core.Url
     -- * Neptune Applications
     , Neptune
     , NeptuneM(..)
@@ -50,6 +51,7 @@ module Web.Neptune.Core (
 
 import Web.Neptune.Core.Util
 import Web.Neptune.Core.Types
+import Web.Neptune.Core.Url
 
 import Data.Word8
 import qualified Data.ByteString as BS
@@ -85,7 +87,7 @@ newtype NeptuneM a = Neptune { unNeptune :: State NeptuneState a }
     deriving (Functor, Applicative, Monad)
 
 {-| Data structure for configuring an application. -}
-data NeptuneState = NS { nDomain :: Domain
+data NeptuneState = NS { nPrepath :: URL
                        , nHandlers :: [Handler]
                        , nReversers :: Map EndpointId Reverse
                        , nErrorHandlers :: ErrorHandlers
@@ -93,13 +95,13 @@ data NeptuneState = NS { nDomain :: Domain
                        }
 
 {-| \"Compile\" the Neptune monad down to a simple configuration. -}
-buildNeptune :: Domain -- ^ domain name to run under (honestly, just a URL prefix)
+buildNeptune :: URL -- ^ domain name to run under (honestly, just a URL prefix)
              -> Vault -- ^ additional configuration
              -> Neptune -- ^ configure the application
              -> NeptuneState -- ^ this is then used to serve any number of requests
-buildNeptune domain config = flip execState zero . unNeptune 
+buildNeptune prepath config = flip execState zero . unNeptune 
     where
-    zero = NS { nDomain = domain
+    zero = NS { nPrepath = prepath
               , nHandlers = []
               , nReversers = Map.empty
               , nErrorHandlers = def
@@ -239,13 +241,13 @@ type Reverse = ReverseM ()
 {-| Reversing a route accumulates a a URL while reading from a store of parameters,
     but it may fail, particularly when necesary parameters are missing.
 -}
-newtype ReverseM a = Reverse { unReverse :: ReaderT ReverseState (StateT (Maybe Domain, PathInfo) Maybe) a}
+newtype ReverseM a = Reverse { unReverse :: ReaderT ReverseState (StateT (Maybe URL, PathInfo) Maybe) a}
     deriving (Functor, Applicative, Monad)
 
 {-| Perform a URL reversal. -}
 runReverseM :: ReverseState
             -> Reverse
-            -> Maybe (Maybe Domain, PathInfo)
+            -> Maybe (Maybe URL, PathInfo)
 runReverseM s = flip execStateT (Nothing, []) . flip runReaderT s . unReverse
 
 type ReverseState = (Vault, NeptuneState)
@@ -352,7 +354,7 @@ class Monad m => DatumMonad m where
 
 {-| Any monad in which URLs may be reversed. -}
 class Monad m => ReverseMonad m where
-    url :: EndpointId -> Vault -> [(Text, ByteString)] -> m Location
+    url :: EndpointId -> Vault -> [(Text, ByteString)] -> m URL
 
 class Monad m => ConfigMonad m where
     config :: Key a -> m (Maybe a)
@@ -400,13 +402,12 @@ negotiate accept formats = Wai.mapAccept (map f formats) accept
     where
     f (a, b) = (a, (a, b))
 
-reverseUrl :: NeptuneState -> EndpointId -> Vault -> [(Text, ByteString)] -> Maybe Location
+reverseUrl :: NeptuneState -> EndpointId -> Vault -> [(Text, ByteString)] -> Maybe URL
 --FIXME also reverse the query string
 reverseUrl s eid args query = do
     endpoint <- eid `Map.lookup` (nReversers s)
-    (m_domain, path) <- runReverseM (args, s) endpoint
-    let domain = fromMaybe (nDomain s) m_domain
-    return (domain, path, Map.fromList query)
+    (m_prepath, path) <- runReverseM (args, s) endpoint
+    return $ fromMaybe (nPrepath s) m_prepath `urlPath` path
 
 
 

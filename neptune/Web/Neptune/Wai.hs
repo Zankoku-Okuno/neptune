@@ -35,22 +35,10 @@ serveWai neptune = waiApp
 
 quickNeptune :: Neptune -> IO ()
 quickNeptune neptune = do
-    putStrLn "Running Neptune (port 8080)..."
+    putStrLn "Running Neptune (http://localhost:8080)..."
     putStrLn "(Ctrl-C to quit)"
-    Warp.run 8080 . serveWai . buildNeptune "http://localhost:8080" Vault.empty $ neptune
+    Warp.run 8080 . serveWai . buildNeptune (simpleUrl "http" "localhost" [] `urlPort` 8080) Vault.empty $ neptune
 
-
-
-
-
-formatURI :: Location -> ByteString
-formatURI (domain, path, query) = encodeUtf8 domain <> raw_path <> raw_query
-    where
-    raw_path = BS.concat $ ("/" <>) . encodePercent <$> path
-    raw_query = case Map.toList query of
-        [] -> ""
-        query -> "?" <> BS.intercalate "&" (formatParam <$> query)
-    formatParam (k, v) = encodePercent k <> "=" <> v
 
 
 waiToNeptune :: Wai.Request -> IO Request
@@ -128,7 +116,7 @@ waiFromNeptune ehs accept (CustomResponse cause vault) =
     waiFromNeptune ehs accept (InternalError $ "Error: Cannot send response type: " <> cause)
 waiFromNeptune ehs accept (Redirect reason loc) = Wai.responseLBS status headers ""
     where
-    headers = [("Location", formatURI loc)]
+    headers = [("Location", showURL loc)]
     status = case reason of
         Created -> Wai.status201
         Moved -> Wai.status301

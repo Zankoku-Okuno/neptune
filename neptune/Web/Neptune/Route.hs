@@ -42,9 +42,9 @@ endpoint eid m (R fore back) a = Neptune $ modify $ \s -> s
     , nReversers = softInsert eid back (nReversers s)
     }
 
-external :: EndpointId -> Domain -> Reverse -> Neptune
-external eid domain back = Neptune $ modify $ \s -> s
-    { nReversers = softInsert eid (back >> setDomain domain) (nReversers s) }
+external :: EndpointId -> URL -> Reverse -> Neptune
+external eid prepath back = Neptune $ modify $ \s -> s
+    { nReversers = softInsert eid (back >> setDomain prepath) (nReversers s) }
 
 include :: Route -> Neptune -> Neptune
 include (R fore back) neptune = Neptune $ do
@@ -181,8 +181,8 @@ captureIO (f, f') key = R fore back
         setDatum key param
     back = create =<< f' <$> getArg key
 
-setDomain :: Domain -> Reverse
-setDomain domain = Reverse $ modify $ \(_, path) -> (Just domain, path)
+setDomain :: URL -> Reverse
+setDomain prepath = Reverse $ modify $ \(_, path) -> (Just prepath, path)
 
 instance ConfigMonad ReverseM where
     config key = Reverse $ asks (Vault.lookup key . nConfig . snd)

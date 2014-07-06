@@ -45,6 +45,7 @@ Examples
 Go Deeper
 ---------
 
+* About URLs
 * [Deep Glossary](deep_glossary.md)
 * Encodings
 * [Philosophy](philosophy.md)
