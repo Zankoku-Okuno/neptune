@@ -96,7 +96,7 @@ Next up is the call to `endpoint`. This is the fundamental unit of server-side c
 
 * A name. It's just simple `Text`, but it will come in handy for url reversing. Once we move on to larger projects, there are some conventions to take account of.
 * A verb. In HTTP, these are called methods. Verbs are also simple `Text`, since we don't want to contrain your application's vocabulary unnecessarily.
-* A route. This specifies how a request for a resource should be matched as well as how the URL for this resource should be reversed. By using `OverloadedStrings`, many routes become easy to type up. In this case, the empty string means the zero route: this resource is accessible from `localhost:8080/`. We'll see more interesting routes soon enough.
+* A route. This specifies how a request for a resource should be matched as well as how the URL for this resource should be reversed. By using `OverloadedStrings`, many routes become easy to type up. In this case, the empty string means the zero route: this resource is accessible from [localhost:8080](localhost:8080). We'll see more interesting routes soon enough.
 * An action. This is a monad, and we've gone ahead and placed it inside do-notation. Most actions will be more complex than this one, such as retrieving or writing data with a database, checking permissions, kicking off tasks, performing analytics, and/or what-have-you.
 
 Inside the action, there's a call to `format`. This is seen at the end of most actions, and really doesn't have much of a point except at the end there. The `format` function performs content negotiation, and to do that, it uses a MediaType => Format map, which we very handily build with a monad.
@@ -123,7 +123,7 @@ Here, we'll just briefly go through and examine some of the ways this small appl
 Content Negotiation
 -------------------
 
-My guess is that looking at that `format $ medium "text/plain" $ text` code, you were thinking "why so verbose?". In fact, I've shown the most verbose form, which also happens to be the most powerful form. For apps that often only serve one representation at any given resource, we'd encourage defining a shortcut. For now, though, plaintext is boring.
+My guess is that looking at that `format $ medium "text/plain" $ text` code, you were thinking "why so verbose?". In fact, I've shown the most verbose form, which also happens to be the most powerful form. You can always define your own shortcuts, and in many cases, we'd encourage it. For now, though, plaintext is boring.
 
 ```haskell
 {-# LANGUAGE OverloadedStrings #-}
@@ -142,7 +142,7 @@ main = quickNeptune $ do
                 lbs htmlFile -- use a lazy ByteString for the response body
 ```
 
-Create and appropriate html file in `home.html`, and see the results. If you're using httpie, here are some relevant requests:
+Create an appropriate html file in `home.html`, and see the results. If you're using httpie, here are some relevant requests:
 
     $ http :8080
     $ http :8080 Accept:text/plain
@@ -169,24 +169,28 @@ main = quickNeptune $ do
             medium "text/plain" $ do
                 text "Goodbyte, cruel world!"
             -- Just showing off how common code can be extracted
-            -- The same thing can be done with Action, Neptune, and even Route
+            -- The same thing can be done with monads
             msgHtml "Lord, I feel the ocean swayin' me..."
-    -- Notice the ":msg" path segment in this route. This captures that segment as a QDatum
+    -- Notice the ":msg" path segment in this route. This captures that
+    --    segment as a QDatum
     endpoint "msg" "GET" "echo/:msg" $ do
-        -- Here, we use qDatum_ff to get the part of the URL captured by ":msg"
+        -- We use qDatum_ff to get the part of the URL captured by ":msg"
         -- The two 'f's are a double-force:
         --   it must be present or error out (no danger of that here)
-        --   it must parse to the correct type (we only need Text, so again no danger here)
+        --   it must parse to the correct type (we only need Text, so
+        --       again no danger here)
         msg <- qDatum_ff "msg"
         format $ msgHtml msg
     endpoint "static" "GET" "static/..." $ do
         --While I'm at it, here's how to cache. The argument is in seconds.
         setCache $ 24 * 60 * 60
-        -- The `pathKey` is just a pre-defined way to access the datum `Vault`.
-        -- You can easily create your own keys.
-        -- Use `datum` to retrieve data from this `Vault`.
+        -- A parameter in the URI path is called a "datum".
+        -- The `pathKey` is just a pre-defined way to access datums.
+        --     You can easily create your own keys.
+        -- Use the `datum` function to retrieve data from this `Vault`.
         path <- T.unpack . T.intercalate "/" <$> datum_f pathKey
-        -- the `anyFormat` function ignores the `Accept` header and does not produce a `Content-Type` header.
+        -- The `anyFormat` function ignores the `Accept` header and does not
+        --     produce a `Content-Type` header.
         anyFormat $ sendfile ("static/" ++ path)
 
 msgHtml :: Text -> Formats
@@ -203,7 +207,7 @@ So as not to complicate things, I've gone ahead and done the Html templating wro
 
     $ http ':8080/echo/<script>alert("Hi!")<%2Fscript>'
 
-For the `static` endpoint, it should be noted that there's no directory-traversal flaw. Paths are automatically normalized to remove the segments `//`, `/./` and `/../`. The `/../` segment, when removed, also removes the previous segment, but if there is no previous segment, then the '/../' is simply removed.
+For the `static` endpoint, it should be noted that there's no directory-traversal flaw. Paths are automatically normalized to remove the segments `//`, `/./` and `/../`. The `/../` segment, when removed, also removes the previous segment, but if there is no previous segment, then the '/../' is simply removed. You can rest assured that these user-supplied paths will never spill over into parent or sibling directories.
 
 Verbs and More
 --------------
@@ -222,13 +226,14 @@ main = quickNeptune $ do
         format $ do
             plaintext $ sendfile fname
             json $ do
+                -- You can do plenty of work in the Format monad
                 contents <- liftIO $ T.readFile fname
                 text $ "{'name':\"" <> contents <> "\"}"
     endpoint "name" "PUT" "" $ do
         -- Extracting the body requires that we understand its Content-Type
         body <- parseBody [("text/plain", return . toStrictT . decodeUtf8L)]
         liftIO $ T.writeFile fname body
-        -- Here's a quick url reversal with no datum and no query params
+        -- Here's a simple url reversal: no datums and no parameters
         goto <- url "name" Vault.empty []
         redirect goto
 
@@ -240,10 +245,10 @@ json :: Format -> Formats
 json = medium "application/json"
 ```
 
-TODO: accept JSON input, better JSON output (like Aeson or something)
-TODO: make sure to send appropriate error responses when getting unsuitable JSON
+* TODO: accept JSON input, better JSON output (like Aeson or something)
+* TODO: make sure to send appropriate error responses when getting unsuitable JSON
 
 TODO
 ====
-review for and note any the security flaws:
-cookies
+* review for and note any the security flaws
+* cookies

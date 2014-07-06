@@ -13,7 +13,8 @@ If you're looking at this in plain text, you can read this documentation in a pl
 References
 ----------
 
-[Expected Changes](coming_soon.md): Neptune is experimental, and its API will be subject to significant change in the near future.
+* [Glossary](glossary.md)
+* [Expected Changes](coming_soon.md): Neptune is experimental, and its API will be subject to significant change in the near future.
 
 These APIs will become available on hackage as they are published
 
@@ -24,7 +25,19 @@ These APIs will become available on hackage as they are published
 Guides
 ------
 
-[Get Started](guides/get_started.md)
+ * [Get Started](guides/get_started.md)
+ * [Generate Content](guides/content.md)
+ * [Use Forms](guides/forms.md)
+ * [Use Application State](guides/app_state.md)
+ * [Use a Database](guides/database.md)
+ * [Configure](guides/configure.md)
+ * Debug
+ * [Master Routes](guides/routes.md)
+ * [Master Actions](guides/actions.md)
+ * [Master Formats](guides/formats.md)
+ * [Master Escapes](guides/escapes.md)
+ * [Master Protocols](guides/protocols.md)
+ * [Interoperate](interoperate.md)
 
 Examples
 --------
@@ -32,5 +45,6 @@ Examples
 Go Deeper
 ---------
 
+* [Deep Glossary](deep_glossary.md)
 * Encodings
 * [Philosophy](philosophy.md)
