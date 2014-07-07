@@ -29,7 +29,7 @@ import qualified Network.Wai.Handler.Warp as Warp
 
 
 -- |Wrap a compiled Neptune application into a Wai application.
-serveWai :: NeptuneState -> Wai.Application
+serveWai :: NeptuneExec -> Wai.Application
 serveWai neptune = waiApp
     where
     neptuneApp = serve neptune
@@ -45,7 +45,9 @@ quickNeptune :: Neptune -> IO ()
 quickNeptune neptune = do
     putStrLn "Running Neptune (http://localhost:8080)..."
     putStrLn "(Ctrl-C to quit)"
-    Warp.run 8080 . serveWai . buildNeptune (simpleUrl "http" "localhost" [] `urlPort` 8080) Vault.empty $ neptune
+    let prepath = simpleUrl "http" "localhost" [] `urlPort` 8080
+        app = execNeptune prepath (buildNeptune Vault.empty neptune)
+    Warp.run 8080 . serveWai $ app
 
 
 -- |Transform a Wai request into a Neptune request.

@@ -10,20 +10,34 @@ Neptune tackles the REST problem the right way. We begin from a deep understandi
 The overall goal is to create a framework that a) is easy-to-learn, b) makes it quick to build small applications and easy to evolve large ones, c) makes writing RESTful code the path of least resistance, d) is flexible in choice and evolution of both frontends and backends and allows for their graceful evolution, and e) illuminates the real requirements and benefits of the REST architectural style.
 
 
+THIS IS A WORK-IN-PROGRESS
+
 Resilience under changes to protocol, data sources, media formats (mimetype, language, &c), application structure, computing stratum
 
 Protocol Independence
 ---------------------
-Every web framework I know is strongly tied to HTTP. PHP is inextricably tied to HTTP, and even HTML. In Python, Pyramid, Bottle and Django all run over WSGI, which just wraps HTTP. Ruby on Rails, Rack and Sinatra all run HTTP servers. Even Haskell's ecosystem, including Yesod and Happstack, all runs over Wai, which again wraps HTTP.
+Every web framework I know is strongly tied to HTTP. PHP is inextricably tied to HTTP, and even HTML. In Python, Pyramid, Bottle and Django all run over WSGI, which just wraps HTTP. Ruby on Rails, Rack and Sinatra all run HTTP servers. Even Haskell's ecosystem, including Yesod and Happstack, all runs over Wai, which again wraps HTTP. We could list web frameworks all week, but we'd both get very bored.
 
 If it's not protocol-independent, it's not RESTful. I can therefore confidently say that no major web framework is RESTful, no matter what it might claim.
 
-Neptune is protocol-independent. When you write a Neptune application, you have a Neptune.Request and you build a Neptune.Response. There is no mention of HTTP anywhere in the core code. Of course, this has consequences for deployment.
+Neptune is protocol-independent. When you write a Neptune application, you have a `Neptune.Request` and you build a `Neptune.Response`. There is no mention of HTTP anywhere in the core code. Of course, this has consequences for deployment.
 
 When you want to deploy over HTTP (or HTTPS), which admittedly is very often, you have to turn the HTTP request into a Neptune request, then turn the resulting Neptune response into an HTTP response. In fact, We have already coded these translations for you, so when you set up a HTTP server with Neptune, you just call a function. When you want to serve over some other protocol, say sftp, git, or your own custom protocol, you don't need to change any of your application code. Imagine trying that in another framework.
 
+Configuration over Convention
+-----------------------------
+
+Conventions are invented. Conventions vary. Conventions are often only show up in the bowels of complicated metaprogramming code.
+
+Configuration is explicit in the code, which makes it easy to document and easy to learn. Yes, configuring your project might take some extra lines of code, but this is a one-off cost. I think your 42000-line application can handle 20 lines of "bloatful" configuration.
+
+Going further, doing something custom in a convention-based system is harder than doing the default. In a configuration-based system, custom is as just as easy as default. This makes it psychologically easier to manage complex setttings in a configuration-based system.
+
+
 Responses to Criticisms
 =======================
+
+It seems like criticizing REST is kind of a thing, which is unsurprising: it's only natural for programmers to push back against hype. It's really too bad that so few people really understand REST that we get hype and ill-gotten resistance.
 
 Conceptual Overhead
 -------------------

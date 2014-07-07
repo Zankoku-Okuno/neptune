@@ -44,7 +44,7 @@ import Web.Neptune.Tools
     In combination with 'buildNeptune' and custom to/fromX functions, it should be
     straightforward to serve a Neptune application over any suitable protocol.
 -}
-serve :: NeptuneState -> Application
+serve :: NeptuneExec -> Application
 serve neptune = app
     where
     app request = runPipeline $ do

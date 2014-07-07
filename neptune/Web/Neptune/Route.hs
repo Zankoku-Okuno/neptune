@@ -45,8 +45,8 @@ import Control.Monad.State
 -}
 endpoint :: EndpointId -> Verb -> Route -> Action -> Neptune
 endpoint eid m (R fore back) a = Neptune $ modify $ \s -> s
-    { nHandlers = nHandlers s ++ [Endpoint fore m a]
-    , nReversers = softInsert eid back (nReversers s)
+    { nlHandlers = nlHandlers s ++ [Endpoint fore m a]
+    , nlReversers = softInsert eid back (nlReversers s)
     }
 
 {-| Add an external URL to a Neptune application.
@@ -54,7 +54,7 @@ endpoint eid m (R fore back) a = Neptune $ modify $ \s -> s
 -}
 external :: EndpointId -> URL -> Reverse -> Neptune
 external eid prepath back = Neptune $ modify $ \s -> s
-    { nReversers = softInsert eid (back >> setDomain prepath) (nReversers s) }
+    { nlReversers = softInsert eid (back >> setDomain prepath) (nlReversers s) }
 
 {-| Include an existing Neptune application within a larger one.
 
@@ -65,19 +65,19 @@ external eid prepath back = Neptune $ modify $ \s -> s
 -}
 include :: Route -> Neptune -> Neptune
 include (R fore back) neptune = Neptune $ do
-    built <- flip buildSubNeptune neptune . nConfig <$> get
+    subNeptune <- flip buildNeptune neptune . nlConfig <$> get
     modify $ \s -> s
-        { nHandlers = nHandlers s ++ [Include fore (nHandlers built)]
-        , nReversers = foldr (\(eid, back') -> softInsert eid (back >> back'))
-                             (nReversers s)
-                             (Map.toList $ nReversers built)
+        { nlHandlers = nlHandlers s ++ [Include fore (nlHandlers subNeptune)]
+        , nlReversers = foldr (\(eid, back') -> softInsert eid (back >> back'))
+                             (nlReversers s)
+                             (Map.toList $ nlReversers subNeptune)
         }
 
 -- |Add a single resource with many available verbs.
 resource :: EndpointId -> Route -> [(Verb, Action)] -> Neptune
 resource eid (R fore back) actions = Neptune $ modify $ \s -> s
-    { nHandlers = nHandlers s ++ [Include fore $ map (uncurry mkHandler) actions]
-    , nReversers = softInsert eid back (nReversers s)
+    { nlHandlers = nlHandlers s ++ [Include fore $ map (uncurry mkHandler) actions]
+    , nlReversers = softInsert eid back (nlReversers s)
     }
     where
     mkHandler = Endpoint (return ())
