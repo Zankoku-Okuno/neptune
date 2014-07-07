@@ -1,4 +1,3 @@
-{-# LANGUAGE RankNTypes #-}
 module Web.Neptune.Core (
       module Web.Neptune.Core.Util
     , module Web.Neptune.Core.Types
@@ -108,6 +107,7 @@ buildNeptune prepath config = flip execState zero . unNeptune
               , nConfig = config
               }
 
+-- |Create a Neptune application suitable for embedding in a larger app.
 buildSubNeptune :: Vault -> Neptune -> NeptuneState
 buildSubNeptune config = buildNeptune undefined config
 
@@ -356,6 +356,7 @@ class Monad m => DatumMonad m where
 class Monad m => ReverseMonad m where
     url :: EndpointId -> Vault -> [(Text, ByteString)] -> m URL
 
+{-| Any monad in which teh server configuration may be obtained. -}
 class Monad m => ConfigMonad m where
     config :: Key a -> m (Maybe a)
 
@@ -397,11 +398,21 @@ evalHandlers s (h:hs) = do
         Nothing -> evalHandlers s hs
         Just result -> return $ Just result
 
+{-| For internal use: Perform content negotiation for media types.
+    If successful, return both the selected media type and its
+    associated payload.
+-}
 negotiate :: AcceptMedia -> [(MediaType, a)] -> Maybe (MediaType, a)
 negotiate accept formats = Wai.mapAccept (map f formats) accept
     where
     f (a, b) = (a, (a, b))
 
+{-| For internal use: perform a URL reversal.
+    
+    That is, find the Reverse action associated with the 'EndpointId'
+    and pass is a datum 'Vault' and query parameters to retrieve a
+    url.
+-}
 reverseUrl :: NeptuneState -> EndpointId -> Vault -> [(Text, ByteString)] -> Maybe URL
 --FIXME also reverse the query string
 reverseUrl s eid args query = do

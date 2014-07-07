@@ -83,7 +83,18 @@ softInsert key val map =
         then map
         else M.insert key val map
 
+{-| Transform a path, treating @\/\/@, @\/.\/@ and @\/..\/@ specially.
 
+    All @\/\/@ and @\/.\/@ sequences are removed from the output.
+    If possible, a @\/..\/@ sequence deletes the previous path segment as
+    it is removed. If there is no prior path segment, then the @\/..\/@ is
+    simply removed without aditional deletion.
+
+    Note that this normalization ensures that the resultant path cannot
+    be used to traverse upwards, out of a containing directory. Beware
+    your filesystem, however, as symlinks can easily allow access to
+    unexpected directories even under the conditions of this function.
+-}
 normalizePath :: [Text] -> [Text]
 normalizePath = go []
     where

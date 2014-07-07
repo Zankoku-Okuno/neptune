@@ -1,3 +1,9 @@
+{-| The module defines many plain data types that find continual use throughout
+    Neptune and in the code of application developers.
+
+    We specifically reject monadic data types from this module; this is what
+    distinguishes plain data from computation-as-data.
+-}
 module Web.Neptune.Core.Types where
 
 import Web.Neptune.Core.Util
@@ -9,22 +15,29 @@ import qualified Network.HTTP.Types as Wai
 import qualified Network.HTTP.Media as Wai
 
 
--- | Identifier used to select a route during URL reversal.
+-- |Identifier used to select a route during URL reversal.
 type EndpointId = Text
+-- |Protocol segment of a 'URL'.
 type Scheme = ByteString
+-- |Hostname or IP address.
 type Host = ByteString
--- | Parsed URL path
+-- |Parsed URL path
 type PathInfo = [Text]
 
+{-| A structured representation of a URL.
+
+    We don't include a field for password, as that field has
+    been deprecated.
+-}
 data URL = URL
-  { _scheme :: Scheme
-  , _user :: Maybe ByteString
-  , _host :: Host
-  , _port :: Maybe Int
-  , _path :: PathInfo
-  , _query :: Map Text [Parameter]
-  , _fragment :: Maybe Text --roughly same as a path segment
-  }
+    { _scheme :: Scheme
+    , _user :: Maybe ByteString
+    , _host :: Host
+    , _port :: Maybe Int
+    , _path :: PathInfo
+    , _query :: Map Text [Parameter]
+    , _fragment :: Maybe Text --roughly same as a path segment
+    }
 
 -- | Verbs
 type Verb = ByteString
@@ -96,10 +109,16 @@ data Response = Response
               | Timeout        DiffTime
               | InternalError  Text
 
+{-| For greater interoperability, the body of a 'Response' can be one of
+    many textual data types.
+-}
 data ResponseBody = LBSResponse LByteString
                   | BuilderResponse Builder
                   | FileResponse FilePath
 
+{-| The cause for a redirect is meaningful to caches and can be
+    meaningful to user agents deciding on the next course of action.
+-}
 data RedirectReason = Created | Moved | Temporary
 
 
