@@ -1,6 +1,7 @@
 {-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
 module Web.Neptune.Tools (
-      module Web.Neptune.Encoding
+      module Web.Neptune.Tools.Encoding
+    , module Web.Neptune.Tools.Url
 
     , newKey
 
@@ -30,7 +31,8 @@ module Web.Neptune.Tools (
 import Web.Neptune.Core
 import Web.Neptune.Route
 import Web.Neptune.Escape
-import Web.Neptune.Encoding
+import Web.Neptune.Tools.Encoding
+import Web.Neptune.Tools.Url
 
 import System.IO.Unsafe
 

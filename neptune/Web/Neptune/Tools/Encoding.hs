@@ -1,4 +1,4 @@
-module Web.Neptune.Encoding (
+module Web.Neptune.Tools.Encoding (
 	  toStrict
     , fromStrict
     , toStrictT
@@ -26,9 +26,9 @@ import Numeric (showHex)
 
 import qualified Data.ByteString as BS
 import qualified Data.Text as T
-import qualified Data.Text.Encoding as T
 import qualified Data.ByteString.Lazy as LBS
 import qualified Data.Text.Lazy as LT
+import qualified Data.Text.Encoding as T
 import qualified Data.Text.Lazy.Encoding as LT
 
 

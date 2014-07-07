@@ -8,3 +8,5 @@ IETF Language Tag
 	http://en.wikipedia.org/wiki/IETF_language_tag
 HTTP 1.1 Header Field Definitions
 	http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html
+RFC 3986 - Uniform Resource Identifier (URI): Generic Syntax
+	http://tools.ietf.org/html/rfc3986#section-4.3

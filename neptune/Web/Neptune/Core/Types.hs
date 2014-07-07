@@ -11,8 +11,8 @@ import qualified Network.HTTP.Media as Wai
 
 -- | Identifier used to select a route during URL reversal.
 type EndpointId = Text
-type Scheme = ByteString -- /\w[\w\d+.-]*/i
-type Host = ByteString -- *( unreserved / pct-encoded / sub-delims )
+type Scheme = ByteString
+type Host = ByteString
 -- | Parsed URL path
 type PathInfo = [Text]
 

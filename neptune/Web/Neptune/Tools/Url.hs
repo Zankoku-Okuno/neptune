@@ -1,4 +1,4 @@
-module Web.Neptune.Url (
+module Web.Neptune.Tools.Url (
       URL
     , Scheme, Host, PathInfo, Parameter
     , module Web.Neptune.Core.Url
@@ -9,7 +9,7 @@ module Web.Neptune.Url (
 import Web.Neptune.Core.Util
 import Web.Neptune.Core.Types
 import Web.Neptune.Core.Url
-import Web.Neptune.Encoding
+import Web.Neptune.Tools.Encoding
 
 import qualified Data.ByteString as BS
 import qualified Data.Text as T
