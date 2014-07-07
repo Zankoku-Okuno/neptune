@@ -16,6 +16,9 @@ Glossary
     <dt>Datum</dt>
     <dd>TODO</dd>
 	
+	<dt>Endpoint</dt
+	<dd>The intersection of a verb and a resource.</dd>
+
 	<dt>Framework Extender</dt>
 	<dd>A person who adds additional Haskell libraries of tools to integrate with the existing Neptune framework.</dd>
 	
@@ -33,3 +36,5 @@ TODO
 ====
 
 Pipeline, Escape/Early Exit
+
+REST terms: resource, verb, media type, protocol, hypermedia, code-on-demand, cache, resource state, application state

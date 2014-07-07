@@ -1,9 +1,11 @@
 module Web.Neptune.Route (
+    -- * Types
       Route, Router, RouterM, Reverse, ReverseM
+    -- * Create Resources
+    , resource
     , endpoint
-    , external
     , include
-    , cluster
+    , external
     -- route combinators
     , zero
     , orRoute
@@ -35,17 +37,32 @@ import Data.Monoid
 import Control.Monad.Reader
 import Control.Monad.State
 
-{- These are for adding routes to a neptune. -}
+{-| Add an endpoint to a Neptune application.
+
+    An \"endpoint\" is the intersection of a resource and a verb.
+    Endpoints may be the entirety of a resource, but they are usually
+    a sub-resource concept.
+-}
 endpoint :: EndpointId -> Verb -> Route -> Action -> Neptune
 endpoint eid m (R fore back) a = Neptune $ modify $ \s -> s
     { nHandlers = nHandlers s ++ [Endpoint fore m a]
     , nReversers = softInsert eid back (nReversers s)
     }
 
+{-| Add an external URL to a Neptune application.
+    External URLs are used only for URL reversing.
+-}
 external :: EndpointId -> URL -> Reverse -> Neptune
 external eid prepath back = Neptune $ modify $ \s -> s
     { nReversers = softInsert eid (back >> setDomain prepath) (nReversers s) }
 
+{-| Include an existing Neptune application within a larger one.
+
+    In large sites, 'include' is essential to ensure good routing performance.
+    If all resources were added through 'endpoint', routing would take O(n) time
+    in the number of resources. With appropriate use if 'include', this can be 
+    reduced to O(log(n)) time.
+-}
 include :: Route -> Neptune -> Neptune
 include (R fore back) neptune = Neptune $ do
     built <- flip buildSubNeptune neptune . nConfig <$> get
@@ -56,8 +73,9 @@ include (R fore back) neptune = Neptune $ do
                              (Map.toList $ nReversers built)
         }
 
-cluster :: EndpointId -> Route -> [(Verb, Action)] -> Neptune
-cluster eid (R fore back) actions = Neptune $ modify $ \s -> s
+-- |Add a single resource with many available verbs.
+resource :: EndpointId -> Route -> [(Verb, Action)] -> Neptune
+resource eid (R fore back) actions = Neptune $ modify $ \s -> s
     { nHandlers = nHandlers s ++ [Include fore $ map (uncurry mkHandler) actions]
     , nReversers = softInsert eid back (nReversers s)
     }
@@ -65,7 +83,7 @@ cluster eid (R fore back) actions = Neptune $ modify $ \s -> s
     mkHandler = Endpoint (return ())
 
 
-{- Below is all about builting routes. -}
+-- |Match the first route, or else match the second.
 orRoute :: Route -> Route -> Route
 (R fore1 back1) `orRoute` (R fore2 back2) = R fore back
     where
@@ -87,6 +105,7 @@ orRoute :: Route -> Route -> Route
                 Just success -> lift $ put success
                 Nothing -> lift . lift $ Nothing
 
+-- |Comsume all remaining path segments and store under the passed 'Key'.
 remaining :: Key [Text] -> Route
 remaining key = R fore back
     where
@@ -113,6 +132,7 @@ instance DatumMonad RouterM where
         vault <- rData <$> get
         return $ key `Vault.lookup` vault
 
+-- |Create/update the datum value stored under the passed 'Key'.
 setDatum :: Key a -> a -> Router
 setDatum key x = Router $ do
     RS { rData = vault } <- get
@@ -151,9 +171,13 @@ instance Monoid Route where
     (R fore1 back1) `mappend` (R fore2 back2) = R (fore1 >> fore2) (back1 >> back2)
 
 
+-- |Match an empty path.
 zero :: Route
 zero = mempty
 
+{-| Match exactly with the passed 'Text'. If there are slashes in the
+    literal, they are treated as path separators.
+-}
 literal :: Text -> Route
 literal path = R fore back
     where
@@ -163,7 +187,11 @@ literal path = R fore back
         when (segments' /= segments) noMatch
     back = creates segments
 
-capture :: (Text -> Maybe a, a -> Text) -> Key a -> Route
+{-| Attempt to parse the leading segment of the remaining path and store
+    it under the passed 'Key'.
+-}
+capture :: (Text -> Maybe a, a -> Text) -- parsing (which can fail) and rendering functions
+        -> Key a -> Route
 capture (f, f') key = R fore back
     where
     fore = do
@@ -172,6 +200,9 @@ capture (f, f') key = R fore back
         setDatum key param
     back = create =<< f' <$> getArg key
 
+-- |As 'capture', but parsing may use 'IO'.
+--
+--  It is not recommended that this function mutate any data, only read it.
 captureIO :: (Text -> IO (Maybe a), a -> Text) -> Key a -> Route
 captureIO (f, f') key = R fore back
     where
@@ -180,6 +211,7 @@ captureIO (f, f') key = R fore back
         param <- fromMaybeM noMatch $ liftIO $ f segment
         setDatum key param
     back = create =<< f' <$> getArg key
+
 
 setDomain :: URL -> Reverse
 setDomain prepath = Reverse $ modify $ \(_, path) -> (Just prepath, path)

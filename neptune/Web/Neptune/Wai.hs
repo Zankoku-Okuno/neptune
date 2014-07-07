@@ -1,4 +1,10 @@
-module Web.Neptune.Wai where
+{-| Serve Neptune applications over Wai. -}
+module Web.Neptune.Wai (
+      serveWai
+    , quickNeptune
+    , waiToNeptune
+    , waiFromNeptune
+    ) where
 
 import Web.Neptune
 import Web.Neptune.Core
@@ -22,6 +28,7 @@ import qualified Web.Cookie as Wai
 import qualified Network.Wai.Handler.Warp as Warp
 
 
+-- |Wrap a compiled Neptune application into a Wai application.
 serveWai :: NeptuneState -> Wai.Application
 serveWai neptune = waiApp
     where
@@ -33,6 +40,7 @@ serveWai neptune = waiApp
         let waiResponse = toWai (acceptType request) response
         respond waiResponse
 
+-- |Set up a development server on @http:\/\/localhost:8080@ running a Neptune application.
 quickNeptune :: Neptune -> IO ()
 quickNeptune neptune = do
     putStrLn "Running Neptune (http://localhost:8080)..."
@@ -40,12 +48,12 @@ quickNeptune neptune = do
     Warp.run 8080 . serveWai . buildNeptune (simpleUrl "http" "localhost" [] `urlPort` 8080) Vault.empty $ neptune
 
 
-
+-- |Transform a Wai request into a Neptune request.
 waiToNeptune :: Wai.Request -> IO Request
 waiToNeptune r = do
     (raw_query, raw_files, body) <- parseBody
     return $ Request
-        { resource = normalizePath $ Wai.pathInfo r
+        { path = normalizePath $ Wai.pathInfo r
         , verb = Wai.requestMethod r
         , acceptType = acceptType
         , acceptLang = error "toNeptune: get acceptLang" --STUB
@@ -83,6 +91,7 @@ waiToNeptune r = do
                 else Map.insert name [value] acc
 
 
+-- |Transform a Neptune response into a Wai response.
 waiFromNeptune :: ErrorHandlers -> AcceptMedia -> Response -> Wai.Response
 waiFromNeptune _ _ r@(Response {}) = case body r of
         LBSResponse body -> Wai.responseLBS Wai.status200 headers body
@@ -106,12 +115,6 @@ waiFromNeptune _ _ r@(Response {}) = case body r of
             name <> "=" <> value
         mkCookie name (Just (value, Just maxage)) =
             name <> "=" <> value <> "; Max-Age=" <> fromString (show maxage) <> "; HttpOnly"
-waiFromNeptune ehs accept (CustomResponse "Awesome" vault) = Wai.responseLBS status headers ""
-    where
-    status = (Wai.Status 137 "Awesome")
-    headers = case Vault.lookup _awesomeKey vault of
-                Nothing -> []
-                Just sauce -> [("Your-sauce-is", sauce)]
 waiFromNeptune ehs accept (CustomResponse cause vault) =
     waiFromNeptune ehs accept (InternalError $ "Error: Cannot send response type: " <> cause)
 waiFromNeptune ehs accept (Redirect reason loc) = Wai.responseLBS status headers ""
@@ -152,10 +155,3 @@ negotiateError empty accept headers formats =
         Nothing -> (headers, empty)
         Just (ct, body) -> (("Content-Type", (fromString . show) ct) : headers, body)
 
-
-_awesomeKey :: Key ByteString
-_awesomeKey = newKey
-
-
-
-    

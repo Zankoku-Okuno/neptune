@@ -72,7 +72,7 @@ type Expiry = Integer
 
 -}
 data Request = Request
-    { resource :: PathInfo
+    { path :: PathInfo
     , verb :: Verb
     , acceptType :: AcceptMedia
     , acceptLang :: AcceptLang

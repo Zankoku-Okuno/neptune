@@ -49,7 +49,7 @@ serve neptune = app
     where
     app request = runPipeline $ do
         let routingState = RS { rRequest = request
-                              , rPath = resource request
+                              , rPath = path request
                               , rData = requestData request
                               , rNeptune = neptune
                               }

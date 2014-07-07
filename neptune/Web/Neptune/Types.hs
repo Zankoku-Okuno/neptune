@@ -1,3 +1,4 @@
+{-| Re-export plain-data types that are commonly used by application developers. -}
 module Web.Neptune.Types (
     -- * Requests and Responses
       Request(..)
