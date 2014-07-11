@@ -108,15 +108,16 @@ waiFromNeptune _ _ r@(Response {}) = case body r of
     cacheHeader = case cacheFor r of
         Nothing -> [ ("Cache-Control", "private, max-age=0, no-cache, no-store")]
         Just dt -> [ ("Cache-Control", "no-transform, public, max-age=" <> (fromString . show) dt)
-                   , ("Vary", "Accept,Accept-Language,Accept-Encoding") ] --TODO check that this is all varying needed
+                   , ("Vary", "Accept,Accept-Language,Accept-Encoding,Cookie") ] --TODO check that this is all varying needed
     cookies = (\(k, v) -> ("Set-Cookie", mkCookie (encodePercent k) v)) <$> Map.toList (updateAppState r)
         where
+        --FIXME let me get at the config here to set up the "Secure" attribute when running over TLS
         mkCookie name Nothing =
-            name <> "=; Max-Age=0; HttpOnly"
+            name <> "=; Max-Age=0"
         mkCookie name (Just (value, Nothing)) =
             name <> "=" <> value
         mkCookie name (Just (value, Just maxage)) =
-            name <> "=" <> value <> "; Max-Age=" <> fromString (show maxage) <> "; HttpOnly"
+            name <> "=" <> value <> "; Max-Age=" <> fromString (show maxage)
 waiFromNeptune ehs accept (CustomResponse cause vault) =
     waiFromNeptune ehs accept (InternalError $ "Error: Cannot send response type: " <> cause)
 waiFromNeptune ehs accept (Redirect reason loc) = Wai.responseLBS status headers ""

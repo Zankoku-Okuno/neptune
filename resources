@@ -10,3 +10,16 @@ HTTP 1.1 Header Field Definitions
 	http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html
 RFC 3986 - Uniform Resource Identifier (URI): Generic Syntax
 	http://tools.ietf.org/html/rfc3986#section-4.3
+new HTTP:
+	HTTP/1.1: Message Syntax and Routing 
+		http://tools.ietf.org/html/rfc7230
+	HTTP/1.1: Semantics and Content - methods, status codes and headers
+		http://tools.ietf.org/html/rfc7231
+	HTTP/1.1: Conditional Requests - e.g., If-Modified-Since
+		http://tools.ietf.org/html/rfc7232
+	HTTP/1.1: Range Requests - getting partial content
+		http://tools.ietf.org/html/rfc7233
+	HTTP/1.1: Caching - browser and intermediary caches
+		http://tools.ietf.org/html/rfc7234
+	HTTP/1.1: Authentication
+		http://tools.ietf.org/html/rfc7235
