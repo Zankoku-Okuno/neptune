@@ -47,7 +47,7 @@ type MediaType = Wai.MediaType
 -- | A range of media types suitable for content-negotiation.
 type AcceptMedia = [Wai.Quality MediaType]
 -- | A single, specific language
-type Language = Text --STUB
+newtype Language = Lang [ByteString]
 -- | A range of languages suitable for content-negotiation.
 type AcceptLang = [Wai.Quality Language]
 

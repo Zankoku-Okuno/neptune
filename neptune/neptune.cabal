@@ -42,6 +42,7 @@ library
   extensions:          OverloadedStrings, GeneralizedNewtypeDeriving
   exposed-modules:     Web.Neptune,
                        Web.Neptune.Types,
+                       Web.Neptune.Language,
                        Web.Neptune.Route,
                        Web.Neptune.Action,
                        Web.Neptune.Format,
