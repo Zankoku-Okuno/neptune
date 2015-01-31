@@ -68,10 +68,10 @@ import Control.Monad.Reader
 import Control.Monad.Writer
 import Control.Monad.State
 
+import qualified Network.HTTP.Media as Web
+
 import qualified Network.Wai as Wai
 import qualified Network.Wai.Parse as Wai
-import qualified Network.HTTP.Types as Wai
-import qualified Network.HTTP.Media as Wai
 import qualified Web.Cookie as Wai
 
 
@@ -413,7 +413,7 @@ evalHandlers s (h:hs) = do
     associated payload.
 -}
 negotiate :: AcceptMedia -> [(MediaType, a)] -> Maybe (MediaType, a)
-negotiate accept formats = Wai.mapAccept (map f formats) accept
+negotiate accept formats = Web.mapQuality (map f formats) accept
     where
     f (a, b) = (a, (a, b))
 

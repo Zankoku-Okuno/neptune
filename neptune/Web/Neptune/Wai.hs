@@ -20,10 +20,11 @@ import qualified Data.Text.Lazy as LT
 import qualified Data.Map as Map
 import qualified Data.Vault.Lazy as Vault
 
+import qualified Network.HTTP.Media as Web
+
 import qualified Network.Wai as Wai
 import qualified Network.Wai.Parse as Wai
 import qualified Network.HTTP.Types as Wai
-import qualified Network.HTTP.Media as Wai
 import qualified Web.Cookie as Wai
 import qualified Network.Wai.Handler.Warp as Warp
 
@@ -68,7 +69,7 @@ waiToNeptune r = do
     where
     headers = Wai.requestHeaders r
     acceptType = let accept = fromMaybe "*/*" $ "Accept" `lookup` headers
-                 in fromMaybe [] $ Wai.parseAccept accept
+                 in fromMaybe [] $ Web.parseQuality accept
     appState = let cookies = maybe [] Wai.parseCookies $ "Cookie" `lookup` headers
                in foldl cookieMap Map.empty cookies
         where cookieMap acc (name, value) = Map.insert (decodePercent name) value acc
@@ -77,7 +78,7 @@ waiToNeptune r = do
             let mime = fromMaybe "application/octet-stream" $ do
                 it <- "Content-Type" `lookup` headers
                 case BS.split _slash . BS.takeWhile (/= _semicolon) $ it of
-                    [major,minor] -> Just $ major Wai.// minor
+                    [major,minor] -> Just $ major Web.// minor
                     _ -> Nothing
             body <- Wai.lazyRequestBody r
             return ([], [], Just (mime, body))

@@ -11,8 +11,7 @@ import Web.Neptune.Core.Util
 import qualified Data.Map as Map
 import qualified Data.Vault.Lazy as Vault
 import qualified Network.Wai.Parse as Wai
-import qualified Network.HTTP.Types as Wai
-import qualified Network.HTTP.Media as Wai
+import qualified Network.HTTP.Media as Web
 
 
 -- |Identifier used to select a route during URL reversal.
@@ -43,13 +42,13 @@ data URL = URL
 type Verb = ByteString
 
 -- | A single, specific media type.
-type MediaType = Wai.MediaType
+type MediaType = Web.MediaType
 -- | A range of media types suitable for content-negotiation.
-type AcceptMedia = [Wai.Quality MediaType]
+type AcceptMedia = [Web.Quality MediaType]
 -- | A single, specific language
-newtype Language = Lang [ByteString]
+type Language = Web.Language
 -- | A range of languages suitable for content-negotiation.
-type AcceptLang = [Wai.Quality Language]
+type AcceptLang = [Web.Quality Language]
 
 -- | A parameter in a request (such as passed in the query string if a URI).
 type Parameter = ByteString
