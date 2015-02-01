@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeSynonymInstances, FlexibleInstances, OverloadedStrings, UndecidableInstances #-}
+{-# LANGUAGE TypeSynonymInstances, FlexibleInstances, OverloadedStrings #-}
 module Web.Neptune.Tools (
       module Web.Neptune.Tools.Encoding
     , module Web.Neptune.Tools.Url
@@ -168,7 +168,11 @@ instance QDatum LText where
     toQDatum = Right . fromStrictT
 instance QDatum String where
     toQDatum = Right . T.unpack
-instance (Integral a) => QDatum a where
+instance QDatum Int where
+    toQDatum x = case T.decimal x of
+        Right (n, "") -> Right n
+        _ -> Left $ "could not parse integer (" <> x <> ")"
+instance QDatum Integer where
     toQDatum x = case T.decimal x of
         Right (n, "") -> Right n
         _ -> Left $ "could not parse integer (" <> x <> ")"
@@ -183,7 +187,7 @@ instance IsString Route where
         --FIXME percent-decode
         mkSeg "" = zero
         mkSeg "\0" = zero
-        mkSeg "..." = remaining pathKey --FIXME normalize the path (remove //, /./, /../, fail if not all /../ can be removed)
+        mkSeg "..." = remaining pathKey
         mkSeg text = case fromJust $ T.uncons text of
             (':', name) -> qRoute name
             ('^', rest) -> error "TODO: regex quick-routes"

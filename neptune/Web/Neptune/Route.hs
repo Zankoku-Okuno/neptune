@@ -112,7 +112,7 @@ remaining key = R fore back
     fore = do
         l <- length . rPath <$> Router get
         when (l < 1) noMatch
-        setDatum key =<< consume l
+        setDatum key =<< (normalizePath <$> consume l)
     back = getArg key >>= creates
 
 
