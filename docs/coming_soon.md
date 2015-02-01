@@ -8,16 +8,9 @@ If you can help contribute, fork us on [Github](https://github.com/Zankoku-Okuno
 URL Manipulation
 ----------------
 
-Neptune strives to provide rich facilities for generating URLs. Unfortunately, our current model is not standards-compliant. The existing `url` package and `Network.URI` in `network` look suitably rich, but they rely on the inefficient `String` type and so don't integrate wel with Neptune, which uses the more modern `ByteString` and `Text` types.
+Neptune strives to provide rich facilities for generating URLs. Unfortunately, our current model is not standards-compliant. The existing `url` package and `Network.URI` in `network` look suitably rich, but they rely on the inefficient `String` type and so don't integrate well with Neptune, which uses the more modern `ByteString` and `Text` types.
 
 The other half of the equation is displaying a concise interface to the user. We want to provide the full flexibility of URIs to the application developer, but at the same time make common tasks the shortest. A suitable system may take some work, but we are confident it can be done without too much difficulty.
-
-Internationalization
---------------------
-
-I have been so far unable to find any existing Haskell libraries for negotiating language according to the relevant RFCs. I will likely have to write my own IETF language tag parser. Luckily, this is a relatively self-contained subsystem, so anyone can help contribute to such a parser as long as they understand the RFCs.
-
-A larger task looms about how to internationalize individual pieces of text. In particular, I need to decide between one-time language negotiation and per-string negotiation. While per-string brings additional flexibility, one-time is much more efficient. Ideally, we can figure out a scheme that provides real flexibility under a negotiate-once system.
 
 Unicode Normalization
 ---------------------

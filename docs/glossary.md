@@ -16,7 +16,7 @@ Glossary
     <dt>Datum</dt>
     <dd>TODO</dd>
 	
-	<dt>Endpoint</dt
+	<dt>Endpoint</dt>
 	<dd>The intersection of a verb and a resource.</dd>
 
 	<dt>Framework Extender</dt>
