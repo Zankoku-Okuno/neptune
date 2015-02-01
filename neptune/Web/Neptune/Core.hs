@@ -366,7 +366,7 @@ class Monad m => DatumMonad m where
 class Monad m => ReverseMonad m where
     url :: EndpointId -> Vault -> [(Text, ByteString)] -> m URL
 
-{-| Any monad in which teh server configuration may be obtained. -}
+{-| Any monad in which the server configuration may be obtained. -}
 class Monad m => ConfigMonad m where
     config :: Key a -> m (Maybe a)
 
@@ -416,6 +416,24 @@ negotiate :: AcceptMedia -> [(MediaType, a)] -> Maybe (MediaType, a)
 negotiate accept formats = Web.mapQuality (map f formats) accept
     where
     f (a, b) = (a, (a, b))
+
+{-| Out of the passed server-side available languages, determine
+    which one the client prefers. If the client cannot accept any
+    option, then the result is 'Nothing'.
+-}
+whichLanguage :: (RequestMonad m) => [Language] -> m (Maybe Language)
+whichLanguage server = do
+    client <- acceptLang `liftM` request
+    return $ Web.matchQuality server client
+
+{-| Given a default language and a list of server-side available languages,
+    perform language negotiation and feed the resulting language to another
+    function.
+-}
+i12ize :: (RequestMonad m) => Language -> [Language] -> (Language -> a) -> m a
+i12ize def server f = do
+    lang <- fromMaybe def `liftM` whichLanguage server
+    return $ f lang
 
 {-| For internal use: perform a URL reversal.
     

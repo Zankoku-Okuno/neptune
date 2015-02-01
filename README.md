@@ -36,7 +36,7 @@ Neptune strives to deliver more. In the core, we support:
 - [x] Protocol-independence.
 - [x] Uniform interface built on URLs and verbs.
 - [x] Content negotiation.
-- [ ] Internationalization.
+- [x] Language negotiation.
 - [x] Application state updates.
 - [x] Network caching.
 - [x] URL reversing.
@@ -59,4 +59,4 @@ In fact, language negotiation happens early, so you always have access to i18n d
 
 Building a Neptune application follows in the footsteps of Sinatra and Scotty. Endpoints are simply collected inside do-notation using simple syntax. Routes, actions and formats all have small monadic DSLs for manipulating the request and response data. The open and unassuming nature of the monads allows developers to extend those DSLs with any additional tools they may need to reduce verbosity.
 
-So far, there has been no mention of HTML, databases, JSON, file systems, or what-have-you. That is by design. You plug in your own database (if you need it), your own templates (if you need them), your own whatever. Neptune is focused on REST, not on how resources are stored, not on the syntax of any particular media.
+So far, there has been no mention of HTML, databases, JSON, file systems, or what-have-you. That is by design. You plug in your own database (if you need it), your own templates (if you need them), your own whatever. Neptune is focused on REST, not on how resources are stored, not on the syntax of any particular media. This lets Neptune be applicable to any resources or representations you need.

@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
+{-# LANGUAGE TypeSynonymInstances, FlexibleInstances, OverloadedStrings, UndecidableInstances #-}
 module Web.Neptune.Tools (
       module Web.Neptune.Tools.Encoding
     , module Web.Neptune.Tools.Url
@@ -38,6 +38,7 @@ import System.IO.Unsafe
 
 import qualified Data.ByteString as BS
 import qualified Data.Text as T
+import qualified Data.Text.Read as T
 import qualified Data.ByteString.Lazy as LBS
 import qualified Data.Text.Lazy as LT
 
@@ -167,8 +168,10 @@ instance QDatum LText where
     toQDatum = Right . fromStrictT
 instance QDatum String where
     toQDatum = Right . T.unpack
---instance (Integral a) => QDatum a where
---    toQDatum = STUB
+instance (Integral a) => QDatum a where
+    toQDatum x = case T.decimal x of
+        Right (n, "") -> Right n
+        _ -> Left $ "could not parse integer (" <> x <> ")"
 
 {- Create Routes from Strings -}
 instance IsString Route where
