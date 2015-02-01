@@ -59,7 +59,7 @@ waiToNeptune r = do
         { path = normalizePath $ Wai.pathInfo r
         , verb = Wai.requestMethod r
         , acceptType = acceptType
-        , acceptLang = error "toNeptune: get acceptLang" --STUB
+        , acceptLang = acceptLang
         , appState = appState
         , queries = mkMap raw_query
         , attachments = mkMap raw_files
@@ -69,6 +69,8 @@ waiToNeptune r = do
     where
     headers = Wai.requestHeaders r
     acceptType = let accept = fromMaybe "*/*" $ "Accept" `lookup` headers
+                 in fromMaybe [] $ Web.parseQuality accept
+    acceptLang = let accept = fromMaybe "*" $ "Accept-Language" `lookup` headers
                  in fromMaybe [] $ Web.parseQuality accept
     appState = let cookies = maybe [] Wai.parseCookies $ "Cookie" `lookup` headers
                in foldl cookieMap Map.empty cookies
@@ -105,7 +107,9 @@ waiFromNeptune _ _ r@(Response {}) = case body r of
     mimeHeader = case mimetype r of
         Nothing -> []
         Just mt -> [("Content-Type", fromString . show $ mt)]
-    langHeader = [] --STUB
+    langHeader = case language r of
+        Nothing -> []
+        Just lang -> [("Content-Language", fromString . show $ lang)]
     cacheHeader = case cacheFor r of
         Nothing -> [ ("Cache-Control", "private, max-age=0, no-cache, no-store")]
         Just dt -> [ ("Cache-Control", "no-transform, public, max-age=" <> (fromString . show) dt)
@@ -143,7 +147,8 @@ waiFromNeptune ehs accept (BadAccept producible) = Wai.responseLBS Wai.status406
     where (headers, f) = negotiateError (const "") accept
                            [("Allowed", BS.intercalate "," (fromString . show <$> producible))]
                            (ehBadAccept ehs)
-waiFromNeptune ehs accept (BadLanguage) = error "no BadLanguage handler" --STUB
+--FIXME this should return a list of supported languages
+waiFromNeptune ehs accept BadLanguage = Wai.responseLBS Wai.status406 [] ""
 waiFromNeptune ehs accept BadPermissions = Wai.responseLBS Wai.status403 headers body
     where (headers, body) = negotiateError "" accept [] (ehBadPermissions ehs)
 waiFromNeptune ehs accept (Timeout dt) = Wai.responseLBS Wai.status504 headers (f dt)
