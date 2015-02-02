@@ -63,6 +63,7 @@ module Web.Neptune (
     , Builder
     -- ** Containers
     , Map, Vault, Key
+    , module Web.Neptune.Tools.Vault
     , softInsert
     -- ** Categories
     , module Data.Monoid
@@ -84,6 +85,7 @@ import Web.Neptune.Action
 import Web.Neptune.Format
 import Web.Neptune.Escape
 import Web.Neptune.Tools
+import Web.Neptune.Tools.Vault
 
 
 -- | A Neptune application takes a request and generates a response,

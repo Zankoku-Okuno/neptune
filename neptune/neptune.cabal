@@ -49,12 +49,13 @@ library
       Web.Neptune.Tools,
       Web.Neptune.Tools.Encoding,
       Web.Neptune.Tools.Url,
+      Web.Neptune.Tools.Vault,
       Web.Neptune.Wai
   other-modules:
       Web.Neptune.Core,
       Web.Neptune.Core.Types,
-      Web.Neptune.Core.Util,
-      Web.Neptune.Core.Url
+      Web.Neptune.Core.Url,
+      Web.Neptune.Core.Util
   
   build-depends:
       base ==4.6.*,
