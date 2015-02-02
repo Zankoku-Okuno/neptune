@@ -1,12 +1,17 @@
 module Web.Neptune.Escape (
+    -- * Exiting Early
+    -- ** Benign
       redirect
+    , RedirectReason(..)
     , moved
     , created
+    , customResponse
+    -- ** Error Conditions
     , notFound
     , notPermitted
     , internalError
-    , customResponse
-    
+    -- * Handling Errors
+    , ErrorHandlers(..)
     , handleBadContent
     , handleBadResource
     , handleBadVerb

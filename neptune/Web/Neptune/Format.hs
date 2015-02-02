@@ -1,14 +1,16 @@
 module Web.Neptune.Format (
-      FormatM, Format
-    , DatumMonad(datum)
-    , RequestMonad(request)
-    , ReverseMonad(url)
-    , ConfigMonad(config)
+    -- * Building Response Bodies
+      Format
+    , FormatM
     , lbs, bytes, text, encode
     , builderResponse
     , sendfile
+    -- * Content Negotiation
+    , negotiate
+    , i12izer
     ) where
 
+import qualified Network.HTTP.Media as Web
 import Web.Neptune.Core
 import Web.Neptune.Escape
 
@@ -17,6 +19,7 @@ import Data.Text.Encoding
 
 import qualified Data.Vault.Lazy as Vault
 import Control.Monad.Reader
+
 
 instance DatumMonad FormatM where
     datum key = Format $ do
@@ -62,3 +65,14 @@ builderResponse = return . BuilderResponse
 --  but it is recommended that the file be transferred byte-for-byte.
 sendfile :: FilePath -> Format
 sendfile = return . FileResponse
+
+
+{-| Given a default language and a list of server-side available languages,
+    perform language negotiation.
+    The result can be feed language-dependent values and the correct language
+    will be retrieved.
+-}
+i12izer :: (RequestMonad m) => Language -> [Language] -> m ((Language -> a) -> a)
+i12izer def server = do
+    lang <- (fromMaybe def . Web.matchQuality server) `liftM` requests acceptLang
+    return ($ lang)

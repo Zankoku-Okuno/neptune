@@ -4,7 +4,30 @@
     We specifically reject monadic data types from this module; this is what
     distinguishes plain data from computation-as-data.
 -}
-module Web.Neptune.Core.Types where
+module Web.Neptune.Core.Types (
+    -- * High-level Protocol Elements
+      EndpointId
+    , Request(..)
+    , Response(..)
+    , ResponseBody(..)
+    , RedirectReason(..)
+    -- * Low-level Protocol Elements
+    , URL(..)
+    , Verb
+    , MediaType
+    , Language
+    , Web.Quality
+    , AcceptMedia
+    , AcceptLang
+    , Parameter
+    , Attachment
+    , AppState
+    , Expiry
+    -- ** URL Parts
+    , Scheme
+    , Host
+    , PathInfo
+    ) where
 
 import Web.Neptune.Core.Util
 

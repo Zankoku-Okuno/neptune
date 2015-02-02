@@ -1,26 +1,74 @@
 module Web.Neptune (
-      module Data.Maybe
-    , module Data.Monoid
-    , module Control.Applicative
-    , module Control.Monad
-    , module Control.Monad.Trans
+    -- * Neptune Applications
+      Neptune
+    , NeptuneM
+    , Application, Middleware
+    , Request(..)
+    , Response(..)
+    , ResponseBody(..)
+    , buildNeptune
+    , execNeptune
+    , serve
+    , NeptuneLib(..)
+    , NeptuneExec(..)
     
+    -- * Request Handling Pipeline
+    -- * Routing
+    , module Web.Neptune.Route
+    -- ** Actions
+    , module Web.Neptune.Action
+    -- ** Formatting
+    , module Web.Neptune.Format
+    -- ** Early Escape
+    , module Web.Neptune.Escape
+    
+    -- * Types
+    -- ** High-level Protocol Elements
+    -- ** Low-level Protocol Elements
+    , URL
+    , Verb
+    , MediaType
+    , Language
+    , AcceptMedia
+    , AcceptLang
+    , Parameter
+    , Attachment
+    , AppState
+    , Expiry
+
+    -- * Convenience Monad Classes
+    , ResultMonad(..)
+    , Result
+    , RequestMonad(..)
+    , requests
+    , queryAll
+    , query
+    , attachment
+    , DatumMonad(..)
+    , pathKey
+    , datumOr
+    , datum_f
+    , ReverseMonad(..)
+    , ConfigMonad(..)
+    
+    -- * Re-Exports
+    -- ** Maybe Tools
+    , module Data.Maybe
+    , nothing
+    , fromMaybeM
+    -- ** String Manipulation
     , IsString(fromString)
     , ByteString, LByteString
     , Text, LText
     , Builder
-
+    -- ** Containers
     , Map, Vault, Key
-
-    , module Web.Neptune.Types
-    , Neptune, NeptuneM
-    , module Web.Neptune.Route
-    , module Web.Neptune.Action
-    , module Web.Neptune.Format
-    , module Web.Neptune.Escape
-    , module Web.Neptune.Tools
-
-    , serve
+    , softInsert
+    -- ** Categories
+    , module Data.Monoid
+    , module Control.Applicative
+    , module Control.Monad
+    , module Control.Monad.Trans
     ) where
 
 import Data.Maybe
@@ -31,13 +79,18 @@ import Control.Monad.Trans
 
 import Web.Neptune.Core
 
-import Web.Neptune.Types
 import Web.Neptune.Route
 import Web.Neptune.Action
 import Web.Neptune.Format
 import Web.Neptune.Escape
 import Web.Neptune.Tools
 
+
+-- | A Neptune application takes a request and generates a response,
+--   which may require performing side-effects.
+type Application = Request -> IO Response
+-- | Wrap an application with additional functionality.
+type Middleware = Application -> Application
 
 {-| Turn a compiled Neptune monad ('buildNeptune') into a real application server.
 

@@ -1,7 +1,5 @@
 module Web.Neptune.Core (
       module Web.Neptune.Core.Util
-    , module Web.Neptune.Core.Types
-    , module Web.Neptune.Core.Url
     -- * Neptune Applications
     , Neptune
     , NeptuneM(..)
@@ -10,14 +8,15 @@ module Web.Neptune.Core (
     , NeptuneLib(..)
     , NeptuneExec(..)
     , ErrorHandlers(..)
-    -- * Result Monad
+    
+    -- * Request Handling Pipeline
+    -- ** Results
     , Result(..)
     , ResultT(..)
     , runResultT
     , ResultMonad(..)
     -- * Routing
     , Route(..)
-    -- ** Forward Routing
     , Router
     , RouterM(..)
     , RoutingState(..)
@@ -26,9 +25,12 @@ module Web.Neptune.Core (
     , Reverse
     , ReverseM(..)
     , runReverseM
-    -- * Handling
+    , reverseUrl
+    -- ** Handlers
     , Handler(..)
     , HandlingState(..)
+    , evalHandler
+    , evalHandlers
     -- ** Actions
     , Action
     , ActionM(..)
@@ -37,17 +39,54 @@ module Web.Neptune.Core (
     , Format
     , FormatM(..)
     , runFormatM
+    , negotiate
+    
+    -- * Types
+    -- ** High-level Protocol Elements
+    , EndpointId
+    , Request(..)
+    , Response(..)
+    , ResponseBody(..)
+    , RedirectReason(..)
+    -- ** Low-level Protocol Elements
+    , URL
+    , Verb
+    , MediaType
+    , Language
+    , Web.Quality
+    , AcceptMedia
+    , AcceptLang
+    , Parameter
+    , Attachment
+    , AppState
+    , Expiry
+    -- ** URL Types
+    , Scheme
+    , Host
+    , PathInfo
+    -- ** URL Building
+    , simpleUrl
+    , urlUser
+    , urlPort
+    , urlPath
+    , urlQuery
+    , urlHash
+
     -- * Convenience Monad Classes
     , RequestMonad(..)
+    , requests
+    , queryAll
+    , query
+    , attachment
     , DatumMonad(..)
+    , pathKey
+    , datumOr
+    , datum_f
     , ReverseMonad(..)
     , ConfigMonad(..)
-    -- * Dispatch Processes
-    , evalHandler
-    , evalHandlers
-    , negotiate
-    , reverseUrl
     ) where
+
+import System.IO.Unsafe
 
 import Web.Neptune.Core.Util
 import Web.Neptune.Core.Types
@@ -292,8 +331,8 @@ data HandlingState = HS { hRequest :: Request
     so this type will come up often. -}
 type Action = ActionM [(MediaType, Format)]
 
-{-| The 'ActionM' monad has read/write access to the 'HandlingState', but this is really
-    only for updating the 'Response' therein.
+{-| The 'ActionM' monad has read access to the 'Request' and application data
+    ('NeptuneExec'), as well as read/write access to the 'Response'.
 -}
 newtype ActionM a = Action { unAction :: StateT HandlingState (ResultT IO) a }
     deriving (Functor, Applicative, Monad, MonadIO)
@@ -308,12 +347,13 @@ runActionM s = flip runStateT s . unAction
     so this type will come up often. -}
 type Format = FormatM ResponseBody
 
-{-| The 'FormatM' monad only has read access to the 'HandlingState'.
+{-| The 'FormatM' monad only has read access to the Request, Repsonse and application data
+    ('NeptuneExec').
 
     In contrast to other frameworks which use a crippled template language to
     enforce separation between view and controller, we enforce only that the 'Action'
     is responsible for accumulating Haskell data and response metadata. While
-    the developer could write 'Format's that write to a filesystem/database/socket,
+    the developer could write 'Format's that write to a filesystem\/database\/socket,
     we hope they'll have better taste than this.
 -}
 newtype FormatM a = Format { unFormat :: ReaderT HandlingState (ResultT IO) a }
@@ -358,9 +398,46 @@ instance Default ErrorHandlers where
 class Monad m => RequestMonad m where
     request :: m Request
 
+-- |Obtain the 'Request' and extract some more relevant data from it.
+requests :: (RequestMonad m) => (Request -> a) -> m a
+requests f = f `liftM` request
+
+-- |Obtain all query parameters under the given parameter name.
+queryAll :: (RequestMonad m) => Text -> m [Parameter]
+queryAll key = (fromMaybe [] . Map.lookup key) `liftM` requests queries
+
+-- |Obtain the first query parameter under the given parameter name.
+query :: (RequestMonad m) => Text -> m (Maybe Parameter)
+query key = do
+    res <- queryAll key
+    return $ case res of
+        [] -> Nothing
+        (x:_) -> Just x
+
+-- |Obtain the attachments under the given name.
+attachment :: (RequestMonad m) => Text -> m [Attachment]
+attachment key = (fromMaybe [] . Map.lookup key) `liftM` requests attachments
+
+
 {-| Any monad from which the vault may be accessed. -}
 class Monad m => DatumMonad m where
     datum :: Key a -> m (Maybe a)
+
+-- |Obtain the path retrived from a @\"...\"@ segment in a 'IsString' 'Route'.
+pathKey :: Key [Text]
+pathKey = unsafePerformIO Vault.newKey
+
+-- |Obtain a datum, but use the passed value when the datum does not exist.
+datumOr :: (DatumMonad m) => a -> Key a -> m a
+datumOr def key = fromMaybe def `liftM` datum key
+
+-- |Obtain a datum, but raise an 'InternalError' when the datum does not exist.
+datum_f :: (DatumMonad m, ResultMonad m) => Key a -> m a
+datum_f key = do
+    m_x <- datum key
+    case m_x of
+        Nothing -> raise $ InternalError "No such datum."
+        Just x -> return x
 
 {-| Any monad in which URLs may be reversed. -}
 class Monad m => ReverseMonad m where
@@ -408,32 +485,14 @@ evalHandlers s (h:hs) = do
         Nothing -> evalHandlers s hs
         Just result -> return $ Just result
 
-{-| For internal use: Perform content negotiation for media types.
+{-| Perform content negotiation for media types.
     If successful, return both the selected media type and its
     associated payload.
 -}
-negotiate :: AcceptMedia -> [(MediaType, a)] -> Maybe (MediaType, a)
+negotiate :: (Web.Accept t) => [Web.Quality t] -> [(t, a)] -> Maybe (t, a)
 negotiate accept formats = Web.mapQuality (map f formats) accept
     where
     f (a, b) = (a, (a, b))
-
-{-| Out of the passed server-side available languages, determine
-    which one the client prefers. If the client cannot accept any
-    option, then the result is 'Nothing'.
--}
-whichLanguage :: (RequestMonad m) => [Language] -> m (Maybe Language)
-whichLanguage server = do
-    client <- acceptLang `liftM` request
-    return $ Web.matchQuality server client
-
-{-| Given a default language and a list of server-side available languages,
-    perform language negotiation and feed the resulting language to another
-    function.
--}
-i12ize :: (RequestMonad m) => Language -> [Language] -> (Language -> a) -> m a
-i12ize def server f = do
-    lang <- fromMaybe def `liftM` whichLanguage server
-    return $ f lang
 
 {-| For internal use: perform a URL reversal.
     

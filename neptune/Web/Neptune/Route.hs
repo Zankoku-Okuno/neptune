@@ -1,29 +1,41 @@
 module Web.Neptune.Route (
-    -- * Types
-      Route, Router, RouterM, Reverse, ReverseM
-    -- * Create Resources
-    , resource
+    -- * Routes
+      Route
+    , route
+    -- * Handlers
+    , EndpointId
+    , Handler
     , endpoint
     , include
+    , resource
     , external
-    -- route combinators
+    -- * URL Matching
+    , Router
+    , RouterM
+    -- * URL Reversing
+    , Reverse
+    , ReverseM
+    , reverseUrl
+    -- * Route Combinators
     , zero
     , orRoute
     , literal
     , capture
     , remaining
-    -- low-level route matching combinators
+    -- ** Low-level matching combinators
     , consume
-    , DatumMonad(datum)
-    , setDatum
     , noMatch
     , RequestMonad(request)
     , ConfigMonad(config)
-    -- low-level route reversing combinators
+    -- ** Low-level reversing combinators
     , create
     , creates
+    , noReverse
     , getArg
     , setDomain
+    -- * Datum Vault
+    , DatumMonad(datum)
+    , setDatum
     ) where
 
 import Web.Neptune.Core
@@ -36,6 +48,10 @@ import qualified Data.Map as Map
 import Data.Monoid
 import Control.Monad.Reader
 import Control.Monad.State
+
+-- | Combine a 'Router' and a 'Reverse' to form a complete route.
+route :: Router -> Reverse -> Route
+route = R
 
 {-| Add an endpoint to a Neptune application.
 
@@ -50,7 +66,7 @@ endpoint eid m (R fore back) a = Neptune $ modify $ \s -> s
     }
 
 {-| Add an external URL to a Neptune application.
-    External URLs are used only for URL reversing.
+    External URLs are used only for URL reversing, not matching.
 -}
 external :: EndpointId -> URL -> Reverse -> Neptune
 external eid prepath back = Neptune $ modify $ \s -> s
@@ -60,7 +76,7 @@ external eid prepath back = Neptune $ modify $ \s -> s
 
     In large sites, 'include' is essential to ensure good routing performance.
     If all resources were added through 'endpoint', routing would take O(n) time
-    in the number of resources. With appropriate use if 'include', this can be 
+    in the number of resources. With appropriate use of 'include', this can be 
     reduced to O(log(n)) time.
 -}
 include :: Route -> Neptune -> Neptune
@@ -157,6 +173,10 @@ create = creates . (:[])
 creates :: [Text] -> Reverse
 creates xs = Reverse . lift . modify $ \(dom, path) -> (dom, path ++ xs)
 
+{-| Always fails to reverse. -}
+noReverse :: ReverseM a
+noReverse = Reverse $ (lift . lift) Nothing
+
 {-| Retrives a parameter from the input. Fails if the key is not present. -}
 getArg :: Key a -> ReverseM a
 getArg key = Reverse $ lift . lift . Vault.lookup key . fst =<< ask
@@ -169,7 +189,6 @@ instance DatumMonad ReverseM where
 instance Monoid Route where
     mempty = R (return ()) (return ())
     (R fore1 back1) `mappend` (R fore2 back2) = R (fore1 >> fore2) (back1 >> back2)
-
 
 -- |Match an empty path.
 zero :: Route

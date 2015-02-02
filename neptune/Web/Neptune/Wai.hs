@@ -7,7 +7,7 @@ module Web.Neptune.Wai (
     ) where
 
 import Web.Neptune
-import Web.Neptune.Core
+import Web.Neptune.Tools
 
 import Numeric (showHex)
 import Data.Word8

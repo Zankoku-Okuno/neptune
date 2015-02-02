@@ -1,8 +1,15 @@
 module Web.Neptune.Tools.Url (
       URL
     , Scheme, Host, PathInfo, Parameter
-    , module Web.Neptune.Core.Url
     , showURL
+    , normalizePath
+    -- * URL Building
+    , simpleUrl
+    , urlUser
+    , urlPort
+    , urlPath
+    , urlQuery
+    , urlHash
     ) where
 
 
