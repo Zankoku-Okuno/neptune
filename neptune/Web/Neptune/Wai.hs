@@ -9,13 +9,9 @@ module Web.Neptune.Wai (
 import Web.Neptune
 import Web.Neptune.Tools
 
-import Numeric (showHex)
 import Data.Word8
-
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as LBS
-import qualified Data.Text as T
-import qualified Data.Text.Lazy as LT
 
 import qualified Data.Map as Map
 import qualified Data.Vault.Lazy as Vault
@@ -30,7 +26,7 @@ import qualified Network.Wai.Handler.Warp as Warp
 
 
 -- |Wrap a compiled Neptune application into a Wai application.
-serveWai :: NeptuneExec -> Wai.Application
+serveWai :: NeptuneServer -> Wai.Application
 serveWai neptune = waiApp
     where
     neptuneApp = serve neptune
@@ -47,7 +43,7 @@ quickNeptune neptune = do
     putStrLn "Running Neptune (http://localhost:8080)..."
     putStrLn "(Ctrl-C to quit)"
     let prepath = simpleUrl "http" "localhost" [] `urlPort` 8080
-        app = execNeptune prepath (buildNeptune Vault.empty neptune)
+        app = compileNeptune Vault.empty prepath neptune
     Warp.run 8080 . serveWai $ app
 
 
@@ -123,9 +119,9 @@ waiFromNeptune _ _ r@(Response {}) = case body r of
             name <> "=" <> value
         mkCookie name (Just (value, Just maxage)) =
             name <> "=" <> value <> "; Max-Age=" <> fromString (show maxage)
-waiFromNeptune ehs accept (CustomResponse cause vault) =
+waiFromNeptune ehs accept (CustomResponse cause _) =
     waiFromNeptune ehs accept (InternalError $ "Error: Cannot send response type: " <> cause)
-waiFromNeptune ehs accept (Redirect reason loc) = Wai.responseLBS status headers ""
+waiFromNeptune _ accept (Redirect reason loc) = Wai.responseLBS status headers ""
     where
     headers = [("Location", showURL loc)]
     status = case reason of
@@ -148,7 +144,8 @@ waiFromNeptune ehs accept (BadAccept producible) = Wai.responseLBS Wai.status406
                            [("Allowed", BS.intercalate "," (fromString . show <$> producible))]
                            (ehBadAccept ehs)
 --FIXME this should return a list of supported languages
-waiFromNeptune ehs accept BadLanguage = Wai.responseLBS Wai.status406 [] ""
+waiFromNeptune ehs accept BadLanguage = Wai.responseLBS Wai.status406 headers body
+    where (headers, body) = negotiateError "" accept [] (ehBadLanguage ehs)
 waiFromNeptune ehs accept BadPermissions = Wai.responseLBS Wai.status403 headers body
     where (headers, body) = negotiateError "" accept [] (ehBadPermissions ehs)
 waiFromNeptune ehs accept (Timeout dt) = Wai.responseLBS Wai.status504 headers (f dt)
@@ -159,8 +156,8 @@ waiFromNeptune ehs accept (InternalError msg) = Wai.responseLBS Wai.status500 he
 negotiateError :: a -> AcceptMedia
                -> [Wai.Header] -> [(MediaType, a)]
                -> ([Wai.Header], a)
-negotiateError empty accept headers formats =
+negotiateError emptyBody accept headers formats =
     case negotiate accept formats of
-        Nothing -> (headers, empty)
+        Nothing -> (headers, emptyBody)
         Just (ct, body) -> (("Content-Type", (fromString . show) ct) : headers, body)
 

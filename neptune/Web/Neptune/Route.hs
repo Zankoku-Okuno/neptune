@@ -21,6 +21,7 @@ module Web.Neptune.Route (
     , orRoute
     , literal
     , capture
+    , captureIO
     , remaining
     -- ** Low-level matching combinators
     , consume
@@ -45,7 +46,7 @@ import qualified Data.Vault.Lazy as Vault
 import qualified Data.Text as T
 import qualified Data.Map as Map
 
-import Data.Monoid
+
 import Control.Monad.Reader
 import Control.Monad.State
 
@@ -233,7 +234,7 @@ captureIO (f, f') key = R fore back
 
 
 setDomain :: URL -> Reverse
-setDomain prepath = Reverse $ modify $ \(_, path) -> (Just prepath, path)
+setDomain prepath = Reverse $ modify $ \(_, bodypath) -> (Just prepath, bodypath)
 
 instance ConfigMonad ReverseM where
     config key = Reverse $ asks (Vault.lookup key . nConfig . snd)

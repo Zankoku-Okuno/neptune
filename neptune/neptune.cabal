@@ -80,3 +80,5 @@ library
   extensions:
     OverloadedStrings,
     GeneralizedNewtypeDeriving
+
+  ghc-options: -Wall

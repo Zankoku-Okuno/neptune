@@ -59,9 +59,9 @@ qRoute name = R fore back
         let qData' = Map.insert name captured qData
         setDatum _quickKey qData'
     back = do
-        m_datum <- Map.lookup name <$> datumOr Map.empty _quickKey
-        case m_datum of 
-            Just datum -> create datum
+        m_val <- Map.lookup name <$> datumOr Map.empty _quickKey
+        case m_val of 
+            Just val -> create val
             Nothing -> Reverse . lift . lift $ Nothing
 
 -- |Obtain a quick-datum.
@@ -69,12 +69,12 @@ qRoute name = R fore back
 --  If it cannot be parsed to the appropriate type, then return a 'Left' with an error message.
 qDatum :: (DatumMonad m, QDatum a) => Text -> m (Maybe (Either Text a))
 qDatum name = do
-    m_datum <- Map.lookup name `liftM` datumOr Map.empty _quickKey
-    case m_datum of
+    m_val <- Map.lookup name `liftM` datumOr Map.empty _quickKey
+    case m_val of
         Nothing -> return Nothing
-        Just datum -> return . Just $ case toQDatum datum of
+        Just raw_val -> return . Just $ case toQDatum raw_val of
             Left err -> Left err
-            Right val -> Right val
+            Right parsed_val -> Right parsed_val
 
 -- |As 'qDatum', but use the supplied default if the quick datum does not exist.
 qDatumOr :: (DatumMonad m, QDatum a) => a -> Text -> m (Either Text a)

@@ -1,8 +1,7 @@
 {-| This module combines many common imports and adds a few extras on top of them. -}
 module Web.Neptune.Core.Util (
     -- * Modules
-      module Data.Default
-    , module Data.Time.Clock
+      module Data.Time.Clock
     , module Data.Maybe
     , module Data.Either
     , module Data.Monoid
@@ -28,7 +27,6 @@ module Web.Neptune.Core.Util (
 
 import Data.Time.Clock
 
-import Data.Default
 import Data.Maybe
 import Data.Either
 import Control.Monad.Maybe
@@ -36,17 +34,12 @@ import Data.Map (Map)
 import Data.Vault.Lazy (Vault, Key)
 import qualified Data.Map as M
 
+import Data.String (IsString(..))
 import Blaze.ByteString.Builder (Builder)
 import Data.Text (Text)
 import Data.ByteString (ByteString)
 import qualified Data.Text.Lazy as LT
 import qualified Data.ByteString.Lazy as LBS
-
-import qualified Data.ByteString as BS
-import Numeric (showHex)
-import Data.String (IsString(..))
-import Data.Text.Encoding
-import Data.Word8 as Word8
 
 import Data.Monoid
 import Control.Applicative
@@ -78,10 +71,10 @@ nothing = MaybeT $ return Nothing
 
 {-| Insert into a map only when the map does not already contain something under the key. -}
 softInsert :: (Ord k) => k -> v -> M.Map k v -> M.Map k v
-softInsert key val map =
-    if key `M.member` map
-        then map
-        else M.insert key val map
+softInsert key val mapping =
+    if key `M.member` mapping
+        then mapping
+        else M.insert key val mapping
 
 {-| Transform a path, treating @\/\/@, @\/.\/@ and @\/..\/@ specially.
 

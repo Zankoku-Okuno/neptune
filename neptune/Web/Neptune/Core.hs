@@ -6,7 +6,7 @@ module Web.Neptune.Core (
     , buildNeptune
     , execNeptune
     , NeptuneLib(..)
-    , NeptuneExec(..)
+    , NeptuneServer(..)
     , ErrorHandlers(..)
     
     -- * Request Handling Pipeline
@@ -91,27 +91,16 @@ import System.IO.Unsafe
 import Web.Neptune.Core.Util
 import Web.Neptune.Core.Types
 import Web.Neptune.Core.Url
+import qualified Network.HTTP.Media as Web
 
-import Data.Word8
-import qualified Data.ByteString as BS
-import qualified Data.ByteString.Lazy as LBS
-import qualified Data.Text as T
-import qualified Data.Text.Lazy as LT
-
+import Data.Default
 import qualified Data.Map as Map
 import qualified Data.Vault.Lazy as Vault
 
-import Control.Monad.Identity
 import Control.Monad.Maybe
 import Control.Monad.Reader
 import Control.Monad.Writer
 import Control.Monad.State
-
-import qualified Network.HTTP.Media as Web
-
-import qualified Network.Wai as Wai
-import qualified Network.Wai.Parse as Wai
-import qualified Web.Cookie as Wai
 
 
 {-| Since 'NeptuneM' is essentially just an accumulator,
@@ -131,14 +120,14 @@ data NeptuneLib = NL { nlHandlers :: [Handler]
                      , nlConfig :: Vault
                      }
 
-data NeptuneExec = NE { nPrepath :: URL
-                      , nHandlers :: [Handler]
-                      , nReversers :: Map EndpointId Reverse
-                      , nErrorHandlers :: ErrorHandlers
-                      , nConfig :: Vault
-                      }
+data NeptuneServer = NS { nPrepath :: URL
+                        , nHandlers :: [Handler]
+                        , nReversers :: Map EndpointId Reverse
+                        , nErrorHandlers :: ErrorHandlers
+                        , nConfig :: Vault
+                        }
 
-{-| \"Compile\" the Neptune monad down to a \"library\" of resources and error handlers. -}
+-- |Compile a Neptune sub-application.
 buildNeptune :: Vault -- ^ additional configuration
              -> Neptune -- ^ configure the application
              -> NeptuneLib -- ^ this is then used to serve any number of requests
@@ -150,15 +139,16 @@ buildNeptune config = flip execState zero . unNeptune
               , nlConfig = config
               }
 
+{-| \"Compile\" the Neptune monad down to a \"executable\" with resources and error handlers and so forth. -}
 execNeptune :: URL -- ^ host over which the application is served
             -> NeptuneLib
-            -> NeptuneExec
-execNeptune url lib = NE { nPrepath = url
-                         , nHandlers = nlHandlers lib
-                         , nReversers = nlReversers lib
-                         , nErrorHandlers = nlErrorHandlers lib
-                         , nConfig = nlConfig lib
-                         }
+            -> NeptuneServer
+execNeptune prepath lib = NS { nPrepath = prepath
+                             , nHandlers = nlHandlers lib
+                             , nReversers = nlReversers lib
+                             , nErrorHandlers = nlErrorHandlers lib
+                             , nConfig = nlConfig lib
+                             }
 
 
 {-| Request handling can make it through the pipeline smoothly, or it might exit the
@@ -181,7 +171,7 @@ instance Alternative Result where
 instance Monad Result where
     return = Normal
     Normal x >>= k = k x
-    Alternate x >>= k = Alternate x
+    Alternate x >>= _ = Alternate x
 
 {-| The 'Result' monad usually needs to be combined with other computations, esp. 'IO'. -}
 newtype ResultT m a = ResultT { unResultT :: m (Result a) }
@@ -198,7 +188,7 @@ instance Monad m => Alternative (ResultT m) where
     x <|> y = ResultT $ do
         xRes <- runResultT x
         case xRes of
-            Normal x -> return $ Normal x
+            (Normal _) -> return xRes
             _ -> runResultT y
 instance Monad m => Monad (ResultT m) where
     return = ResultT . return . Normal
@@ -281,7 +271,7 @@ runRoutesM action = do
 data RoutingState = RS { rPath :: PathInfo
                        , rData :: Vault
                        , rRequest :: Request
-                       , rNeptune :: NeptuneExec
+                       , rNeptune :: NeptuneServer
                        }
 
 {-| Since reversing a route is mainly a accumulation, this type will come up often. -}
@@ -299,7 +289,7 @@ runReverseM :: ReverseState
             -> Maybe (Maybe URL, PathInfo)
 runReverseM s = flip execStateT (Nothing, []) . flip runReaderT s . unReverse
 
-type ReverseState = (Vault, NeptuneExec)
+type ReverseState = (Vault, NeptuneServer)
 
 {-| A handler can be a single endpoint or a \"sub-application\",
     which is number of endpoints all sharing a path prefix.
@@ -324,7 +314,7 @@ data Handler = Endpoint Router Verb Action
 data HandlingState = HS { hRequest :: Request
                         , hData :: Vault
                         , hResponse :: Response
-                        , hNeptune :: NeptuneExec
+                        , hNeptune :: NeptuneServer
                         }
 
 {-| The 'ActionM' monad is primarily concerned with producing a '[(MediaType, Format)]',
@@ -332,7 +322,7 @@ data HandlingState = HS { hRequest :: Request
 type Action = ActionM [(MediaType, Format)]
 
 {-| The 'ActionM' monad has read access to the 'Request' and application data
-    ('NeptuneExec'), as well as read/write access to the 'Response'.
+    ('NeptuneServer'), as well as read/write access to the 'Response'.
 -}
 newtype ActionM a = Action { unAction :: StateT HandlingState (ResultT IO) a }
     deriving (Functor, Applicative, Monad, MonadIO)
@@ -348,7 +338,7 @@ runActionM s = flip runStateT s . unAction
 type Format = FormatM ResponseBody
 
 {-| The 'FormatM' monad only has read access to the Request, Repsonse and application data
-    ('NeptuneExec').
+    ('NeptuneServer').
 
     In contrast to other frameworks which use a crippled template language to
     enforce separation between view and controller, we enforce only that the 'Action'
@@ -459,14 +449,14 @@ evalHandler :: RoutingState
             -> Handler
             -> WriterT [Verb] (ResultT IO) (Maybe (Vault, Action))
 evalHandler s (Endpoint route method action) = do
-    result <- runRouteM s route
-    case result of
+    m_result <- runRouteM s route
+    case m_result of
         Nothing -> return Nothing
         Just result ->
             if null (rPath result)
                 then if method == verb (rRequest result)
                         then return $ Just (rData result, action)
-                        else const Nothing <$> tell [method]
+                        else Nothing <$ tell [method]
                 else return Nothing
 evalHandler s (Include route subhandlers) = do
     result <- runRouteM s route
@@ -478,7 +468,7 @@ evalHandler s (Include route subhandlers) = do
 evalHandlers :: RoutingState
              -> [Handler]
              -> WriterT [Verb] (ResultT IO) (Maybe (Vault, Action))
-evalHandlers s [] = return Nothing
+evalHandlers _ [] = return Nothing
 evalHandlers s (h:hs) = do
     m_result <- evalHandler s h
     case m_result of
@@ -500,7 +490,7 @@ negotiate accept formats = Web.mapQuality (map f formats) accept
     and pass is a datum 'Vault' and query parameters to retrieve a
     url.
 -}
-reverseUrl :: NeptuneExec -> EndpointId -> Vault -> [(Text, ByteString)] -> Maybe URL
+reverseUrl :: NeptuneServer -> EndpointId -> Vault -> [(Text, ByteString)] -> Maybe URL
 --FIXME also reverse the query string
 reverseUrl s eid args query = do
     endpoint <- eid `Map.lookup` (nReversers s)

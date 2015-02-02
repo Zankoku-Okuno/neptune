@@ -71,14 +71,11 @@ encodeUtf8 = T.encodeUtf8
 
 -- |Encode strict Text using percent encoding.
 encodePercent :: Text -> ByteString
-encodePercent = BS.pack . concatMap encByte . BS.unpack . encodeUtf8
+encodePercent = BS.pack . concatMap encBytePercent . BS.unpack . encodeUtf8
 
 -- |Encode strict Text using Latin-1, a superset of ASCII.
 encodeLatin1 :: Text -> ByteString
-encodeLatin1 = BS.pack . map encByte . T.unpack
-    where
-    encByte c | c >= chr 256 = error "Text cannot be encoded in Latin-1."
-    encByte c = fromIntegral $ fromEnum c
+encodeLatin1 = BS.pack . map encByteLatin1 . T.unpack
 
 -- |Encode lazy Text using Utf-8, a superset of ASCII.
 encodeUtf8L :: LText -> LByteString
@@ -86,14 +83,11 @@ encodeUtf8L = LT.encodeUtf8
 
 -- |Encode lazy Text using percent encoding.
 encodePercentL :: LText -> LByteString
-encodePercentL = LBS.pack . concatMap encByte . LBS.unpack . encodeUtf8L
+encodePercentL = LBS.pack . concatMap encBytePercent . LBS.unpack . encodeUtf8L
 
 -- |Encode lazy Text using Latin-1, a superset of ASCII.
 encodeLatin1L :: LText -> LByteString
-encodeLatin1L = LBS.pack . map encByte . LT.unpack
-    where
-    encByte c | c >= chr 256 = error "Text cannot be encoded in Latin-1."
-    encByte c = fromIntegral $ fromEnum c
+encodeLatin1L = LBS.pack . map encByteLatin1 . LT.unpack
 
 -- |Decode a Utf-8 encoded strict ByteString.
 decodeUtf8 :: ByteString -> Text
@@ -119,21 +113,22 @@ decodePercentL = decodeUtf8L . LBS.pack . reverse . decByte [] . LBS.unpack
 decodeLatin1L :: LByteString -> LText
 decodeLatin1L = LT.pack . map (chr . fromIntegral) . LBS.unpack
 
-encByte :: Word8 -> [Word8]
-encByte c | _0 <= c && c <= _9 = [c]
-encByte c | _A <= c && c <= _Z = [c]
-encByte c | _a <= c && c <= _z = [c]
-encByte c | c `elem` [_underscore, _hyphen, _period, _tilde] = [c]
-encByte c = _percent : if length hex == 1 then _0:hex else hex
+
+encBytePercent :: Word8 -> [Word8]
+encBytePercent c | _0 <= c && c <= _9 = [c]
+encBytePercent c | _A <= c && c <= _Z = [c]
+encBytePercent c | _a <= c && c <= _z = [c]
+encBytePercent c | c `elem` [_underscore, _hyphen, _period, _tilde] = [c]
+encBytePercent c = _percent : if length hex == 1 then _0:hex else hex
     where
     hex :: [Word8]
     hex = fromIntegral . ord <$> showHex c ""
 
 decByte :: [Word8] -> [Word8] -> [Word8]
 decByte acc [] = acc
-decByte acc (_percent:b:l:rest) = case (fromHex b, fromHex l) of
-        (Just b', Just l') -> decByte (16*b' + l' : acc) rest
-        _ -> decByte (_percent:acc) (b:l:rest)
+decByte acc (_percent:high:low:rest) = case (fromHex high, fromHex low) of
+        (Just high', Just low') -> decByte (16*high' + low' : acc) rest
+        _ -> decByte (_percent:acc) (high:low:rest)
     where
     fromHex :: Word8 -> Maybe Word8
     fromHex b | 0x30 <= b && b <= 0x39 = Just $ b - 0x30
@@ -141,3 +136,7 @@ decByte acc (_percent:b:l:rest) = case (fromHex b, fromHex l) of
     fromHex b | 0x61 <= b && b <= 0x66 = Just $ b - 0x61 + 10
     fromHex _ = Nothing
 decByte acc (c:rest) = decByte (c:acc) rest
+
+encByteLatin1 :: Char -> Word8
+encByteLatin1 c | c >= chr 256 = error "Text cannot be encoded in Latin-1."
+encByteLatin1 c = fromIntegral $ fromEnum c

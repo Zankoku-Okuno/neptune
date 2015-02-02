@@ -14,7 +14,7 @@ import qualified Network.HTTP.Media as Web
 import Web.Neptune.Core
 import Web.Neptune.Escape
 
-import Data.ByteString.Lazy (toStrict, fromStrict)
+import Data.ByteString.Lazy (fromStrict)
 import Data.Text.Encoding
 
 import qualified Data.Vault.Lazy as Vault

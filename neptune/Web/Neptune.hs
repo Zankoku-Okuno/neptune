@@ -6,11 +6,9 @@ module Web.Neptune (
     , Request(..)
     , Response(..)
     , ResponseBody(..)
-    , buildNeptune
-    , execNeptune
+    , NeptuneServer(..)
+    , compileNeptune
     , serve
-    , NeptuneLib(..)
-    , NeptuneExec(..)
     
     -- * Request Handling Pipeline
     -- * Routing
@@ -56,6 +54,7 @@ module Web.Neptune (
     , module Data.Maybe
     , nothing
     , fromMaybeM
+    , module Data.Default
     -- ** String Manipulation
     , IsString(fromString)
     , ByteString, LByteString
@@ -72,6 +71,7 @@ module Web.Neptune (
     , module Control.Monad.Trans
     ) where
 
+import Data.Default
 import Data.Maybe
 import Data.Monoid
 import Control.Applicative
@@ -94,12 +94,15 @@ type Application = Request -> IO Response
 -- | Wrap an application with additional functionality.
 type Middleware = Application -> Application
 
+compileNeptune :: Vault -> URL -> Neptune -> NeptuneServer
+compileNeptune config prepath = execNeptune prepath . buildNeptune config
+
 {-| Turn a compiled Neptune monad ('buildNeptune') into a real application server.
 
     In combination with 'buildNeptune' and custom to/fromX functions, it should be
     straightforward to serve a Neptune application over any suitable protocol.
 -}
-serve :: NeptuneExec -> Application
+serve :: NeptuneServer -> Application
 serve neptune = app
     where
     app request = runPipeline $ do
@@ -120,13 +123,13 @@ serve neptune = app
                                }
         (formats, state) <- runActionM handlingState action
         let acceptable = fst <$> formats
-        (mimetype, format) <- maybe (raise $ BadAccept acceptable) return $
+        (mimetype, renderer) <- maybe (raise $ BadAccept acceptable) return $
             negotiate (acceptType request) formats
         let state' = if mimetype == "*/*"
                         then state
                         else state { hResponse = (hResponse state) {mimetype = Just mimetype} }
-        body <- runFormatM state' format
+        body <- runFormatM state' renderer
         return $ (hResponse state') { body = body }
     runPipeline :: ResultT IO Response -> IO Response
     runPipeline x = runResultT x >>= \res ->
-        return $ case res of { Normal x -> x; Alternate x -> x }
+        return $ case res of { Normal x' -> x'; Alternate x' -> x' }

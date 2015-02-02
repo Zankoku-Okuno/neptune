@@ -31,8 +31,8 @@ module Web.Neptune.Core.Types (
 
 import Web.Neptune.Core.Util
 
+import Data.Default
 import qualified Data.Map as Map
-import qualified Data.Vault.Lazy as Vault
 import qualified Network.Wai.Parse as Wai
 import qualified Network.HTTP.Media as Web
 

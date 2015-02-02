@@ -14,13 +14,11 @@ import Web.Neptune.Tools.Vault
 import qualified Data.Text as T
 
 
-
-
 {- Create 'Route's from 'String's -}
 instance IsString Route where
     fromString str = case T.split (==',') (T.pack str) of
-            [one] -> mkRoute one
-            many -> foldl1 orRoute (map mkRoute many)
+            [option] -> mkRoute option
+            options -> foldl1 orRoute (map mkRoute options)
         where
         mkRoute = mconcat . map mkSeg . normalizePath . T.split (=='/')
         --FIXME percent-decode
