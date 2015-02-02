@@ -3,6 +3,7 @@ module Web.Neptune.Tools (
       module Web.Neptune.Tools.Encoding
     , module Web.Neptune.Tools.Url
     , module Web.Neptune.Tools.Vault
+    , pathKey
     ) where
 
 import Web.Neptune.Core
@@ -13,6 +14,10 @@ import Web.Neptune.Tools.Vault
 
 import qualified Data.Text as T
 
+
+-- |Obtain the path retrived from a @\"...\"@ segment in a 'IsString' 'Route'.
+pathKey :: Key [Text]
+pathKey = newKey
 
 {- Create 'Route's from 'String's -}
 instance IsString Route where

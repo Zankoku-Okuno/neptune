@@ -94,7 +94,7 @@ type Expiry = Integer
 
 -}
 data Request = Request
-    { path :: PathInfo
+    { resource :: PathInfo
     , verb :: Verb
     , acceptType :: AcceptMedia
     , acceptLang :: AcceptLang
@@ -114,7 +114,7 @@ data Request = Request
     appropriate placeholders should be given.
 -}
 data Response = Response
-    { mimetype :: Maybe MediaType
+    { contentType :: Maybe MediaType
     , language :: Maybe Language
     , cacheFor :: Maybe Expiry
     , updateAppState :: Map Text (Maybe (AppState, Maybe Expiry))
@@ -149,7 +149,7 @@ instance IsString ResponseBody where
 
 instance Default Response where
     def = Response
-        { mimetype = Nothing
+        { contentType = Nothing
         , language = Nothing
         , cacheFor = Nothing
         , updateAppState = Map.empty

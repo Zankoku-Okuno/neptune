@@ -84,6 +84,7 @@ import Web.Neptune.Route
 import Web.Neptune.Action
 import Web.Neptune.Format
 import Web.Neptune.Escape
+import Web.Neptune.Convenience
 import Web.Neptune.Tools
 import Web.Neptune.Tools.Vault
 
@@ -95,7 +96,7 @@ type Application = Request -> IO Response
 type Middleware = Application -> Application
 
 compileNeptune :: Vault -> URL -> Neptune -> NeptuneServer
-compileNeptune config prepath = execNeptune prepath . buildNeptune config
+compileNeptune conf prepath = execNeptune prepath . buildNeptune conf
 
 {-| Turn a compiled Neptune monad ('buildNeptune') into a real application server.
 
@@ -105,18 +106,18 @@ compileNeptune config prepath = execNeptune prepath . buildNeptune config
 serve :: NeptuneServer -> Application
 serve neptune = app
     where
-    app request = runPipeline $ do
-        let routingState = RS { rRequest = request
-                              , rPath = path request
-                              , rData = requestData request
+    app incoming = runPipeline $ do
+        let routingState = RS { rRequest = incoming
+                              , rPath = resource incoming
+                              , rData = requestData incoming
                               , rNeptune = neptune
                               }
         m_route <- runRoutesM $ evalHandlers routingState (nHandlers neptune)
         (vault, action) <- case m_route of
             Left [] -> raise BadResource
             Left allowed -> raise $ BadVerb allowed
-            Right route -> return route
-        let handlingState = HS { hRequest = request
+            Right routed -> return routed
+        let handlingState = HS { hRequest = incoming
                                , hData = vault
                                , hResponse = def
                                , hNeptune = neptune
@@ -124,12 +125,12 @@ serve neptune = app
         (formats, state) <- runActionM handlingState action
         let acceptable = fst <$> formats
         (mimetype, renderer) <- maybe (raise $ BadAccept acceptable) return $
-            negotiate (acceptType request) formats
+            negotiate (acceptType incoming) formats
         let state' = if mimetype == "*/*"
                         then state
-                        else state { hResponse = (hResponse state) {mimetype = Just mimetype} }
-        body <- runFormatM state' renderer
-        return $ (hResponse state') { body = body }
+                        else state { hResponse = (hResponse state) {contentType = Just mimetype} }
+        rendered <- runFormatM state' renderer
+        return $ (hResponse state') { body = rendered }
     runPipeline :: ResultT IO Response -> IO Response
     runPipeline x = runResultT x >>= \res ->
         return $ case res of { Normal x' -> x'; Alternate x' -> x' }

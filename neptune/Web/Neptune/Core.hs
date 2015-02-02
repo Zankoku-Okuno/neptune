@@ -71,22 +71,7 @@ module Web.Neptune.Core (
     , urlPath
     , urlQuery
     , urlHash
-
-    -- * Convenience Monad Classes
-    , RequestMonad(..)
-    , requests
-    , queryAll
-    , query
-    , attachment
-    , DatumMonad(..)
-    , pathKey
-    , datumOr
-    , datum_f
-    , ReverseMonad(..)
-    , ConfigMonad(..)
     ) where
-
-import System.IO.Unsafe
 
 import Web.Neptune.Core.Util
 import Web.Neptune.Core.Types
@@ -95,7 +80,6 @@ import qualified Network.HTTP.Media as Web
 
 import Data.Default
 import qualified Data.Map as Map
-import qualified Data.Vault.Lazy as Vault
 
 import Control.Monad.Maybe
 import Control.Monad.Reader
@@ -131,12 +115,12 @@ data NeptuneServer = NS { nPrepath :: URL
 buildNeptune :: Vault -- ^ additional configuration
              -> Neptune -- ^ configure the application
              -> NeptuneLib -- ^ this is then used to serve any number of requests
-buildNeptune config = flip execState zero . unNeptune 
+buildNeptune conf = flip execState zero . unNeptune 
     where
     zero = NL { nlHandlers = []
               , nlReversers = Map.empty
               , nlErrorHandlers = def
-              , nlConfig = config
+              , nlConfig = conf
               }
 
 {-| \"Compile\" the Neptune monad down to a \"executable\" with resources and error handlers and so forth. -}
@@ -384,64 +368,6 @@ instance Default ErrorHandlers where
         }
 
 
-{-| Any monad from which a 'Request' can be retrieved. -}
-class Monad m => RequestMonad m where
-    request :: m Request
-
--- |Obtain the 'Request' and extract some more relevant data from it.
-requests :: (RequestMonad m) => (Request -> a) -> m a
-requests f = f `liftM` request
-
--- |Obtain all query parameters under the given parameter name.
-queryAll :: (RequestMonad m) => Text -> m [Parameter]
-queryAll key = (fromMaybe [] . Map.lookup key) `liftM` requests queries
-
--- |Obtain the first query parameter under the given parameter name.
-query :: (RequestMonad m) => Text -> m (Maybe Parameter)
-query key = do
-    res <- queryAll key
-    return $ case res of
-        [] -> Nothing
-        (x:_) -> Just x
-
--- |Obtain the attachments under the given name.
-attachment :: (RequestMonad m) => Text -> m [Attachment]
-attachment key = (fromMaybe [] . Map.lookup key) `liftM` requests attachments
-
-
-{-| Any monad from which the vault may be accessed. -}
-class Monad m => DatumMonad m where
-    datum :: Key a -> m (Maybe a)
-
--- |Obtain the path retrived from a @\"...\"@ segment in a 'IsString' 'Route'.
-pathKey :: Key [Text]
-pathKey = unsafePerformIO Vault.newKey
-
--- |Obtain a datum, but use the passed value when the datum does not exist.
-datumOr :: (DatumMonad m) => a -> Key a -> m a
-datumOr def key = fromMaybe def `liftM` datum key
-
--- |Obtain a datum, but raise an 'InternalError' when the datum does not exist.
-datum_f :: (DatumMonad m, ResultMonad m) => Key a -> m a
-datum_f key = do
-    m_x <- datum key
-    case m_x of
-        Nothing -> raise $ InternalError "No such datum."
-        Just x -> return x
-
-{-| Any monad in which URLs may be reversed. -}
-class Monad m => ReverseMonad m where
-    url :: EndpointId -> Vault -> [(Text, ByteString)] -> m URL
-
-{-| Any monad in which the server configuration may be obtained. -}
-class Monad m => ConfigMonad m where
-    config :: Key a -> m (Maybe a)
-
-
-instance ConfigMonad NeptuneM where
-    config key = Vault.lookup key . nlConfig <$> Neptune get
-
-
 {-| Attempt to route through a single handler
     (which may be a single endpoint, or a sub-app).
 -}
@@ -475,6 +401,9 @@ evalHandlers s (h:hs) = do
         Nothing -> evalHandlers s hs
         Just result -> return $ Just result
 
+
+
+--FIXME negotiate and reverseUrl should integrate better with the convenience monads, RequestMonad and ReverseMonad
 {-| Perform content negotiation for media types.
     If successful, return both the selected media type and its
     associated payload.
@@ -492,7 +421,7 @@ negotiate accept formats = Web.mapQuality (map f formats) accept
 -}
 reverseUrl :: NeptuneServer -> EndpointId -> Vault -> [(Text, ByteString)] -> Maybe URL
 --FIXME also reverse the query string
-reverseUrl s eid args query = do
+reverseUrl s eid args queryParams = do
     endpoint <- eid `Map.lookup` (nReversers s)
     (m_prepath, path) <- runReverseM (args, s) endpoint
     return $ fromMaybe (nPrepath s) m_prepath `urlPath` path

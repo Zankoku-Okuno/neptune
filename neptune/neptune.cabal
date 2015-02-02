@@ -55,7 +55,8 @@ library
       Web.Neptune.Core,
       Web.Neptune.Core.Types,
       Web.Neptune.Core.Url,
-      Web.Neptune.Core.Util
+      Web.Neptune.Core.Util,
+      Web.Neptune.Convenience
   
   build-depends:
       base ==4.6.*,

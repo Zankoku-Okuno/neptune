@@ -20,6 +20,7 @@ import System.IO.Unsafe
 import Web.Neptune.Core
 import Web.Neptune.Route
 import Web.Neptune.Escape
+import Web.Neptune.Convenience
 import Web.Neptune.Tools.Encoding
 
 import qualified Data.Text as T
