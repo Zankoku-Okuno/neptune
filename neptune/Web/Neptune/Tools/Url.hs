@@ -1,8 +1,15 @@
 module Web.Neptune.Tools.Url (
       URL
     , Scheme, Host, PathInfo, Parameter
-    , module Web.Neptune.Core.Url
     , showURL
+    , normalizePath
+    -- * URL Building
+    , simpleUrl
+    , urlUser
+    , urlPort
+    , urlPath
+    , urlQuery
+    , urlHash
     ) where
 
 
@@ -29,7 +36,7 @@ showURL url = mconcat [ _scheme url, "://"
     raw_query :: Map Text [Parameter] -> ByteString
     raw_query query = case Map.toList query of
         [] -> ""
-        query -> "?" <> BS.intercalate "&" (formatParam <$> query)
+        queryList -> "?" <> BS.intercalate "&" (formatParam <$> queryList)
     formatParam :: (Text, [Parameter]) -> ByteString
     formatParam (k, vs) = BS.intercalate "&" $ format1Param k <$> vs
     format1Param :: Text -> Parameter -> ByteString

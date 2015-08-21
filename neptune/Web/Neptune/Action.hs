@@ -15,16 +15,11 @@ module Web.Neptune.Action (
     ) where
 
 import Web.Neptune.Core
-import Web.Neptune.Escape
+import Web.Neptune.Convenience
 
 import qualified Data.Map as Map
-import qualified Data.Vault.Lazy as Vault
 import Control.Monad.State
 
-instance DatumMonad ActionM where
-    datum key = Action $ do
-        vault <- hData <$> get
-        return $ key `Vault.lookup` vault
 
 {-| Extract the body of a request by performing parsing.
     The exact parser used is determined by examining the content-type
@@ -65,18 +60,6 @@ delAppState key = Action $ do
     let stateTransfers' = Map.insert key Nothing stateTransfers
     modify $ \s -> s { hResponse = (hResponse s) {updateAppState = stateTransfers'} }
 
-instance ReverseMonad ActionM where
-    url eid args query = do
-        s <- hNeptune <$> Action get
-        case reverseUrl s eid args query of
-            Nothing -> internalError $ "Error: could not reverse url " <> eid
-            Just res -> return res
-
-instance RequestMonad ActionM where
-    request = hRequest <$> Action get
-
-instance ConfigMonad ActionM where
-    config key = Vault.lookup key . nConfig . hNeptune <$> Action get
 
 -- |A simple accumulation monad for gathering representations.
 newtype FormatsM a = Formats { unFormats :: State [(MediaType, Format)] a }

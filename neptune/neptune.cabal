@@ -39,38 +39,47 @@ build-type:          Simple
 cabal-version:       >=1.8
 
 library
-  extensions:          OverloadedStrings, GeneralizedNewtypeDeriving
-  exposed-modules:     Web.Neptune,
-                       Web.Neptune.Types,
-                       Web.Neptune.Language,
-                       Web.Neptune.Route,
-                       Web.Neptune.Action,
-                       Web.Neptune.Format,
-                       Web.Neptune.Escape,
-                       Web.Neptune.Tools,
-                       Web.Neptune.Tools.Encoding,
-                       Web.Neptune.Tools.Url,
-                       Web.Neptune.Core,
-                       Web.Neptune.Core.Types,
-                       Web.Neptune.Core.Util,
-                       Web.Neptune.Core.Url,
-                       Web.Neptune.Wai
-  -- other-modules:       
-  build-depends:       base ==4.6.*,
-                       word8 ==0.0.4,
-                       text ==0.11.*,
-                       bytestring ==0.10.*,
-                       blaze-builder ==0.3.*,
-                       split ==0.2.*,
-                       time ==1.4.*,
-                       containers == 0.5.*,
-                       data-default ==0.5.*,
-                       vault ==0.3.*,
-                       mtl,
-                       MaybeT ==0.1.*,
-                       wai ==3.*,
-                       wai-extra ==3.0.*,
-                       warp ==3.*,
-                       http-types ==0.8.*,
-                       http-media ==0.1.*,
-                       cookie ==0.4.*
+  
+  exposed-modules:
+      Web.Neptune,
+      Web.Neptune.Route,
+      Web.Neptune.Action,
+      Web.Neptune.Format,
+      Web.Neptune.Escape,
+      Web.Neptune.Tools,
+      Web.Neptune.Tools.Encoding,
+      Web.Neptune.Tools.Url,
+      Web.Neptune.Tools.Vault,
+      Web.Neptune.Wai
+  other-modules:
+      Web.Neptune.Core,
+      Web.Neptune.Core.Types,
+      Web.Neptune.Core.Url,
+      Web.Neptune.Core.Util,
+      Web.Neptune.Convenience
+  
+  build-depends:
+      base ==4.6.*,
+      word8 ==0.0.4,
+      text ==0.11.*,
+      bytestring ==0.10.*,
+      blaze-builder ==0.3.*,
+      split ==0.2.*,
+      time ==1.4.*,
+      containers == 0.5.*,
+      data-default ==0.5.*,
+      vault ==0.3.*,
+      mtl,
+      MaybeT ==0.1.*,
+      wai ==3.*,
+      wai-extra ==3.0.*,
+      warp ==3.*,
+      http-types ==0.8.*,
+      http-media ==0.4.*,
+      cookie ==0.4.*
+  
+  extensions:
+    OverloadedStrings,
+    GeneralizedNewtypeDeriving
+
+  ghc-options: -Wall

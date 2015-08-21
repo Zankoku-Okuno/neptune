@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 import Web.Neptune
+import Web.Neptune.Tools.Encoding
 import Web.Neptune.Wai
 import qualified Data.Text.IO as T
 import qualified Data.Vault.Lazy as Vault

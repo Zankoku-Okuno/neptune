@@ -4,15 +4,37 @@
     We specifically reject monadic data types from this module; this is what
     distinguishes plain data from computation-as-data.
 -}
-module Web.Neptune.Core.Types where
+module Web.Neptune.Core.Types (
+    -- * High-level Protocol Elements
+      EndpointId
+    , Request(..)
+    , Response(..)
+    , ResponseBody(..)
+    , RedirectReason(..)
+    -- * Low-level Protocol Elements
+    , URL(..)
+    , Verb
+    , MediaType
+    , Language
+    , Web.Quality
+    , AcceptMedia
+    , AcceptLang
+    , Parameter
+    , Attachment
+    , AppState
+    , Expiry
+    -- ** URL Parts
+    , Scheme
+    , Host
+    , PathInfo
+    ) where
 
 import Web.Neptune.Core.Util
 
+import Data.Default
 import qualified Data.Map as Map
-import qualified Data.Vault.Lazy as Vault
 import qualified Network.Wai.Parse as Wai
-import qualified Network.HTTP.Types as Wai
-import qualified Network.HTTP.Media as Wai
+import qualified Network.HTTP.Media as Web
 
 
 -- |Identifier used to select a route during URL reversal.
@@ -43,13 +65,13 @@ data URL = URL
 type Verb = ByteString
 
 -- | A single, specific media type.
-type MediaType = Wai.MediaType
+type MediaType = Web.MediaType
 -- | A range of media types suitable for content-negotiation.
-type AcceptMedia = [Wai.Quality MediaType]
+type AcceptMedia = [Web.Quality MediaType]
 -- | A single, specific language
-newtype Language = Lang [ByteString]
+type Language = Web.Language
 -- | A range of languages suitable for content-negotiation.
-type AcceptLang = [Wai.Quality Language]
+type AcceptLang = [Web.Quality Language]
 
 -- | A parameter in a request (such as passed in the query string if a URI).
 type Parameter = ByteString
@@ -72,7 +94,7 @@ type Expiry = Integer
 
 -}
 data Request = Request
-    { path :: PathInfo
+    { resource :: PathInfo
     , verb :: Verb
     , acceptType :: AcceptMedia
     , acceptLang :: AcceptLang
@@ -92,7 +114,7 @@ data Request = Request
     appropriate placeholders should be given.
 -}
 data Response = Response
-    { mimetype :: Maybe MediaType
+    { contentType :: Maybe MediaType
     , language :: Maybe Language
     , cacheFor :: Maybe Expiry
     , updateAppState :: Map Text (Maybe (AppState, Maybe Expiry))
@@ -127,7 +149,7 @@ instance IsString ResponseBody where
 
 instance Default Response where
     def = Response
-        { mimetype = Nothing
+        { contentType = Nothing
         , language = Nothing
         , cacheFor = Nothing
         , updateAppState = Map.empty

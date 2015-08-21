@@ -1,41 +1,59 @@
 module Web.Neptune.Route (
-    -- * Types
-      Route, Router, RouterM, Reverse, ReverseM
-    -- * Create Resources
-    , resource
+    -- * Routes
+      Route
+    , route
+    -- * Handlers
+    , EndpointId
+    , Handler
     , endpoint
     , include
+    , verbs
     , external
-    -- route combinators
+    -- * URL Matching
+    , Router
+    , RouterM
+    -- * URL Reversing
+    , Reverse
+    , ReverseM
+    , reverseUrl
+    -- * Route Combinators
     , zero
     , orRoute
     , literal
     , capture
+    , captureIO
     , remaining
-    -- low-level route matching combinators
+    -- ** Low-level matching combinators
     , consume
-    , DatumMonad(datum)
-    , setDatum
     , noMatch
     , RequestMonad(request)
     , ConfigMonad(config)
-    -- low-level route reversing combinators
+    -- ** Low-level reversing combinators
     , create
     , creates
+    , noReverse
     , getArg
     , setDomain
+    -- * Datum Vault
+    , DatumMonad(datum)
+    , setDatum
     ) where
 
 import Web.Neptune.Core
+import Web.Neptune.Convenience
 
 import Data.List.Split (wordsBy)
 import qualified Data.Vault.Lazy as Vault
 import qualified Data.Text as T
 import qualified Data.Map as Map
 
-import Data.Monoid
+
 import Control.Monad.Reader
 import Control.Monad.State
+
+-- | Combine a 'Router' and a 'Reverse' to form a complete route.
+route :: Router -> Reverse -> Route
+route = R
 
 {-| Add an endpoint to a Neptune application.
 
@@ -50,7 +68,7 @@ endpoint eid m (R fore back) a = Neptune $ modify $ \s -> s
     }
 
 {-| Add an external URL to a Neptune application.
-    External URLs are used only for URL reversing.
+    External URLs are used only for URL reversing, not matching.
 -}
 external :: EndpointId -> URL -> Reverse -> Neptune
 external eid prepath back = Neptune $ modify $ \s -> s
@@ -60,7 +78,7 @@ external eid prepath back = Neptune $ modify $ \s -> s
 
     In large sites, 'include' is essential to ensure good routing performance.
     If all resources were added through 'endpoint', routing would take O(n) time
-    in the number of resources. With appropriate use if 'include', this can be 
+    in the number of resources. With appropriate use of 'include', this can be 
     reduced to O(log(n)) time.
 -}
 include :: Route -> Neptune -> Neptune
@@ -74,8 +92,8 @@ include (R fore back) neptune = Neptune $ do
         }
 
 -- |Add a single resource with many available verbs.
-resource :: EndpointId -> Route -> [(Verb, Action)] -> Neptune
-resource eid (R fore back) actions = Neptune $ modify $ \s -> s
+verbs :: EndpointId -> Route -> [(Verb, Action)] -> Neptune
+verbs eid (R fore back) actions = Neptune $ modify $ \s -> s
     { nlHandlers = nlHandlers s ++ [Include fore $ map (uncurry mkHandler) actions]
     , nlReversers = softInsert eid back (nlReversers s)
     }
@@ -112,7 +130,7 @@ remaining key = R fore back
     fore = do
         l <- length . rPath <$> Router get
         when (l < 1) noMatch
-        setDatum key =<< consume l
+        setDatum key =<< (normalizePath <$> consume l)
     back = getArg key >>= creates
 
 
@@ -127,11 +145,6 @@ consume n = Router $ do
     modify $ \s -> s { rPath = suffix }
     return prefix
 
-instance DatumMonad RouterM where
-    datum key = Router $ do
-        vault <- rData <$> get
-        return $ key `Vault.lookup` vault
-
 -- |Create/update the datum value stored under the passed 'Key'.
 setDatum :: Key a -> a -> Router
 setDatum key x = Router $ do
@@ -143,13 +156,6 @@ setDatum key x = Router $ do
 noMatch :: RouterM a
 noMatch = Router $ lift nothing
 
-instance RequestMonad RouterM where
-    request = rRequest <$> Router get
-
-instance ConfigMonad RouterM where
-    config key = Vault.lookup key . nConfig . rNeptune <$> Router get
-
-
 {-| Appends a path segment. -}
 create :: Text -> Reverse
 create = creates . (:[])
@@ -157,19 +163,19 @@ create = creates . (:[])
 creates :: [Text] -> Reverse
 creates xs = Reverse . lift . modify $ \(dom, path) -> (dom, path ++ xs)
 
+{-| Always fails to reverse. -}
+noReverse :: ReverseM a
+noReverse = Reverse $ (lift . lift) Nothing
+
 {-| Retrives a parameter from the input. Fails if the key is not present. -}
 getArg :: Key a -> ReverseM a
 getArg key = Reverse $ lift . lift . Vault.lookup key . fst =<< ask
-
-instance DatumMonad ReverseM where
-    datum key = Reverse $ Vault.lookup key <$> asks fst
 
 
 {-| Routes can be added together piece-by-piece. -}
 instance Monoid Route where
     mempty = R (return ()) (return ())
     (R fore1 back1) `mappend` (R fore2 back2) = R (fore1 >> fore2) (back1 >> back2)
-
 
 -- |Match an empty path.
 zero :: Route
@@ -214,7 +220,4 @@ captureIO (f, f') key = R fore back
 
 
 setDomain :: URL -> Reverse
-setDomain prepath = Reverse $ modify $ \(_, path) -> (Just prepath, path)
-
-instance ConfigMonad ReverseM where
-    config key = Reverse $ asks (Vault.lookup key . nConfig . snd)
+setDomain prepath = Reverse $ modify $ \(_, bodypath) -> (Just prepath, bodypath)
