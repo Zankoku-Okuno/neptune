@@ -47,7 +47,7 @@ The thing REST gives you is a way to easily integrate yourself with a single, va
 
 On the other hand, if you want to do something simple (serve only static html), then it's trivial to write a quick function to only allow the GET verb, the text/html mimetype, the en language, and so on. Then, when you want more, the underlying REST plumbing makes it easy to expand.
 
-If you don't want to integrate with other systems, be scalable to many clients, to evolve without hinderance, then go ahead and use something with "less" conceptual overhead. As long remember: you get only what you pay for.
+If you don't want to integrate with other systems, be scalable to many clients, to evolve without hinderance, then go ahead and use something with "less" conceptual overhead. As long as you remember: you get only what you pay for.
 
 Chatty APIs
 -----------
