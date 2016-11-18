@@ -1,0 +1,48 @@
+Url, Method, Content-type
+
+Resource Identifier
+(Resource, Resource Metadata)
+(Representation, Representation Metadata)
+Control Data
+
+
+
+
+
+We obtain:
+    uri
+    method
+    content preferences (media type, language, encoding)
+    request payload (with metadata)
+    control info (if-modified-since, etag, &c)
+Use the Uri to obtain a Resource
+(lazily) Apply the Method to the Resource to obtain ResponseData
+(lazily) Apply Negotiation to the ResponseData to obtain a formatted response with metadata
+Apply control info to the FormattedResponse
+
+
+applications are built of endpoints and sub-applications
+an application should:
+    dispatch uris to resources/handlers
+    generate documentation
+
+
+
+
+type Uri = ByteString
+type ResponseData = [(negotiate, Response)]
+type Response = (ResponseMetadata, FormattedResponse, ApplicationStateControl)
+type ResponseMetadata = Map ByteString ByteString
+type FormattedResponse = ByteString
+type ApplicationStateControl = Map URN ByteString
+    -- e.g. appState PUT cookie:auth?token=123456
+
+class Endpoint a info | a -> info where
+    info :: a -> info
+    dispatch :: a -> Request -> Maybe (IO Response)
+
+    endpoint :: info -> --^ name, documentation, url reversing, ...
+             -> (Uri -> Maybe params)
+             -> (params -> IO resource)
+             -> (resource -> IO ResponseData)
+             -> a
