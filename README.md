@@ -1,30 +1,11 @@
 Neptune
 =======
 
-[![Build Status](https://travis-ci.org/Zankoku-Okuno/neptune.svg?branch=master)](https://travis-ci.org/Zankoku-Okuno/neptune)
-
 The most RESTful framework in existence.
 Written in Haskell for guaranteed quality.
 Oh, and it's concise, lightweight and flexible to boot.
 
-```haskell
-{-# LANGUAGE OverloadedStrings #-}
-import Web.Neptune
-import Web.Neptune.Wai
-
-main = quickNeptune $ do
-    endpoint "root" "GET" ":gerund,\0" $ do
-        gerund <- qDatumOr_f "risin'" "gerund"
-        format $ do
-            medium "text/plain" $
-                text $ "Valleys of Neptune is " <> gerund <> "..."
-            medium "text/html" $
-                text $ "<p>Valleys of Neptune is " <> gerund <> "...</p>"
-    endpoint "file" "GET" "file/..."  $ do
-        path <- mconcat . map ("/" <>) <$> datum_f pathKey
-        format $ do
-            medium "text/plain" $ text $ "Requested path: " <> path
-```
+TODO small example site
 
 Read our full documentation on [Viewdocs](http://Zankoku-Okuno.viewdocs.io/neptune/).
 
@@ -43,10 +24,10 @@ Neptune strives to deliver more. In the core, we support:
 - [x] Protocol-independence.
 - [x] Uniform interface built on URLs and verbs.
 - [x] Content negotiation.
-- [x] Language negotiation.
-- [x] Application state updates.
-- [x] Network caching.
-- [x] URL reversing.
+- [ ] Language negotiation.
+- [ ] Application state updates.
+- [ ] Network caching.
+- [ ] URL reversing.
 
 The core is media-type agnostic, so we can't do much there to help you satisfy the hypermedia constraint in your application, or use code-on-demand.
 On the other hand, some media types are very common, and should deserve our attention. We support both hypermedia and code-on-demand in:
@@ -65,7 +46,7 @@ To hook Neptune up to the web, you'll need to convert between Neptune and whatev
 Don't worry, we've already written a way to turn a Neptune application into a Wai application.
 
 Within Neptune, there are three major stages of processing: route, action, and format.
-Routing, in addition to selecting an action, helps build up a Vault of parameters that can be accessed at any later point.
+Routing, in addition to selecting an action, helps build up parameters to be passed to the resource (action + format).
 In the action, the user should obtain the resource data and perform any analysis or shuffling.
 Between action and format, there's a content negotiation step which selects out one particular format from among many.
 Finally, the format stage creates the body of the output.
@@ -74,13 +55,11 @@ Well, that's the rough idea.
 In fact, multiple alternate exits from the pipeline are available, such as redirects or authorization failures.
 The action is also responsible for updating application state and managing caching policy.
 
-Building a Neptune application follows in the footsteps of Sinatra and Scotty.
-Endpoints are simply collected inside do-notation using simple syntax.
-Routes, actions and formats all have small monadic DSLs for manipulating the request and response data.
-The open and unassuming nature of the monads allows developers to extend those DSLs with any additional tools they may need to reduce verbosity.
+Building a Neptune application follows simple functional composition.
+There are no specialized monads or typeclasses to grok before you get to work.
 
 In this description, there has been no mention of HTML, databases, JSON, file systems, or what-have-you.
 That is by design.
 You plug in your own database (if you need it), your own templates (if you need them), your own whatever.
-Neptune is focused on REST, not on how resources are stored, not on the syntax of any particular media.
-This lets Neptune be applicable to any resources or representations you need.
+Neptune is focused on REST, not on how resources are stored, not on the syntax of any particular medium.
+This allows Neptune to be applicable to any resources or representations you need.
