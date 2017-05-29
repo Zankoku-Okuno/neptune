@@ -1,4 +1,3 @@
-__pycache__
-*.pyc
-.hsenv
 dist
+.cabal-sandbox/
+cabal.sandbox.config
