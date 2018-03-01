@@ -30,7 +30,7 @@ library
                        OverloadedStrings,
                        RecordWildCards,
                        ViewPatterns
-  build-depends:       base >=4.9 && <4.10,
+  build-depends:       base >=4.9 && <5,
                        bytestring ==0.10.*,
                        classy-prelude ==1.*,
                        containers ==0.5.*,
