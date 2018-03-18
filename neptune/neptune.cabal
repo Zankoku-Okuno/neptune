@@ -32,7 +32,7 @@ library
                        ViewPatterns
   build-depends:       base >=4.9 && <5,
                        bytestring ==0.10.*,
-                       classy-prelude ==1.*,
+                       classy-prelude >=1 && <1.4,
                        containers ==0.5.*,
                        http-media >=0.6 && <0.7,
                        http-types >=0.9 && <1,
