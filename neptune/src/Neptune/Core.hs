@@ -38,6 +38,7 @@ type NeptuneApp = Request -> IO Response
 data Request = Request
     { resourceId :: Location
     , method :: Http.Method
+    , requestBody :: Maybe Content
     , negotiation :: Negotiation
     }
 data Negotiation = Negotiation
